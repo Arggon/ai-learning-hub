@@ -1,0 +1,10 @@
+screens/
+test/
+tools/
+*.bak
+*.orig
+*~
+backup*/
+*.backup
+node_modules/
+.DS_Store
