@@ -172,7 +172,7 @@ window.ES.viz = {
   "— Paste the relevant text, data or details instead of describing them.": "— Pegá el texto, los datos o los detalles relevantes en vez de describirlos.",
   "— Ask for a shape: \"5 bullet points\", \"a table\", \"under 100 words\".": "— Pedí una forma: \"5 viñetas\", \"una tabla\", \"menos de 100 palabras\".",
   "— Show a sample of the style or output you want.": "— Mostrá una muestra del estilo o la salida que querés.",
-  "— Add: \"If you're not sure, say so\" or \"Ask me questions first\".": "— Agregá: \"Si no estás seguro, decilo\" o \"Haceme preguntas primero\".",
+  "— Add: \"If you're not sure, say so\" or \"Ask me questions first\".": "— Agregá: \"Si tenés dudas, decilo\" o \"Haceme preguntas primero\".",
   "Ingredients:": "Ingredientes:", ". Great brief — the model has what it needs.": ". Excelentes indicaciones: el modelo tiene lo que necesita.",
   ". Decent. Adding the missing pieces usually improves the answer.": ". Aceptable. Agregar las piezas que faltan suele mejorar la respuesta.", ". Very short prompts get generic answers. Add context and a format.": ". Los prompts muy cortos reciben respuestas genéricas. Agregá contexto y un formato.",
   "⚠ This looks like a password, API key or card number. Never paste secrets into a chatbot.": "⚠ Esto parece una contraseña, una clave de API o un número de tarjeta. Nunca pegues secretos en un chatbot.",

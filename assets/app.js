@@ -321,10 +321,11 @@
     if (!plain(obj)) throw new ImportError("imp_err_obj");
     // Accepts arggon-learn-progress.json and files exported by AI Learning Hub (ai-hub-progress.json, same v2 shape, no "app" field)
     // and its v1 format. The file name doesn't matter; only the content is checked.
-    if (obj.app !== undefined && obj.app !== "arggon-learn") throw new ImportError("imp_err_app", { app: String(obj.app) });
+    if (obj.app !== undefined && obj.app !== "arggon-learn") { const a = String(obj.app); throw new ImportError("imp_err_app", { app: a.length > 80 ? a.slice(0, 79) + "…" : a }); }
     for (const f of ["done", "quiz", "manualKnown", "settings", "view"]) if (obj[f] !== undefined && !plain(obj[f])) throw new ImportError("imp_err_shape", { field: f });
     if (obj.profile != null && !validProfile(obj.profile)) throw new ImportError("imp_err_shape", { field: "profile" });
-    if (obj.version !== undefined && obj.version !== 2) throw new ImportError("imp_err_version", { v: String(obj.version) });
+    if (typeof obj.version === "string" && obj.version.trim() === "2") throw new ImportError("imp_err_version_str");
+    if (obj.version !== undefined && obj.version !== 2) { const v = String(obj.version); throw new ImportError("imp_err_version", { v: v.length > 40 ? v.slice(0, 39) + "…" : v }); }
     const hasData = knownIds(obj.done).length || knownIds(obj.quiz).length || knownIds(obj.manualKnown).length || validProfile(obj.profile);
     if (!hasData) throw new ImportError("imp_err_empty");
     if (obj.version === 2) return sanitize(obj);
@@ -341,8 +342,13 @@
     };
     $("#import-file", root).onchange = async (e) => {
       const f = e.target.files[0]; if (!f) return;
-      let parsed; try { parsed = JSON.parse(await f.text()); } catch { setMsg(msg, "bad", t("import_bad", { err: t("imp_err_json") })); return; }
-      try { S = importState(parsed); save(); mmReady = false; route().then(() => { const m = $("#data-msg"); if (m) setMsg(m, "good", t("import_ok")); }); }
+      let parsed; try { parsed = JSON.parse(await f.text()); } catch { setMsg(msg, "bad", t("import_bad", { err: t("imp_err_json") })); e.target.value = ""; return; }
+      let next; try { next = importState(parsed); } catch (err) { setMsg(msg, "bad", t("import_bad", { err: err instanceof ImportError ? t(err.key, err.vars) : t("imp_err_obj") })); e.target.value = ""; return; }
+      // A valid file replaces the current progress: ask first. Cancelling leaves everything as it was.
+      const cur = { done: Object.keys(S.done).length, quiz: Object.keys(S.quiz).length };
+      const inc = { done: Object.keys(next.done).length, quiz: Object.keys(next.quiz).length };
+      if (!confirm(t("confirm_import", { cd: cur.done, cq: cur.quiz, nd: inc.done, nq: inc.quiz }))) { setMsg(msg, "muted", t("import_cancelled")); e.target.value = ""; return; }
+      try { S = next; save(); mmReady = false; route().then(() => { const m = $("#data-msg"); if (m) setMsg(m, "good", t("import_ok")); }); }
       catch (err) { setMsg(msg, "bad", t("import_bad", { err: err instanceof ImportError ? t(err.key, err.vars) : t("imp_err_obj") })); }
     };
     $("#reset", root).onclick = () => { if (confirm(t("confirm_reset"))) { S.done = {}; S.quiz = {}; save(); route(); } };
