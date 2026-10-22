@@ -17,7 +17,7 @@ addConcept({
 <li>Computers are fast but literal. They do exactly what the instructions say — even when that is wrong. A [[bug|error en el código]] is an instruction that does not do what the author meant.</li>
 <li>A [[programming language|lenguaje de programación]] (Python, JavaScript, C#, …) is a strict format for writing instructions that a person can read and a computer can run.</li>
 <li>Three building blocks appear in almost every program: <b>sequence</b> (do this, then that), <b>decisions</b> (<code>if</code> something is true, do A, otherwise B) and <b>repetition</b> ([[loop|bucle]]: do this for every item).</li>
-<li>[[Pseudocode|pseudocódigo]] is plain-language "almost code" for explaining an idea without the details of a specific language. This hub can show examples in pseudocode, Python, JavaScript/TypeScript or C# (choose in Settings).</li>
+<li>[[Pseudocode|pseudocódigo]] is plain-language "almost code" for explaining an idea without the details of a specific language. Arggon Learn can show examples in pseudocode, Python, JavaScript/TypeScript or C# (choose in Settings).</li>
 </ul>
 <h3>Analogy</h3>
 <p>A cooking recipe is a program for a person: ingredients (inputs), steps in order, decisions ("if the dough is sticky, add flour"), repetition ("stir until smooth") and a result (output). Programming is writing recipes for a cook who never improvises.</p>
@@ -344,7 +344,7 @@ while (r.Read()) Console.WriteLine($"{r.GetInt32(0)} {r.GetString(1)} {r.GetDoub
 addConcept({
   id: "math_basics", title: "The math you need", es: "la matemática que necesitas",
   group: "basics", prereqs: [], minutes: 25,
-  summary: "Functions and graphs (y = w·x + b), percentages, squares, and exponents and logarithms. That is all the math this hub needs; every formula later is explained in words too.",
+  summary: "Functions and graphs (y = w·x + b), percentages, squares, and exponents and logarithms. That is all the math this AI track needs; every formula later is explained in words too.",
   why: "Models are functions, training reads slopes on graphs, probabilities are percentages, and softmax and loss use exponents and logs. With these five ideas the rest is approachable.",
   body: `
 <h3>The idea in one sentence</h3>

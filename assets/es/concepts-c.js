@@ -32,7 +32,7 @@ chatbot_use: {
 model: {
   title: "¿Qué es un modelo?",
   summary: "Un modelo es una función con números ajustables (parámetros). Entrenar es encontrar buenos números; la inferencia es llamar a la función.",
-  why: "Todo en IA es un modelo. Una vez que ves un modelo como una función con números aprendidos, el resto del hub trata de cómo se aprenden y se usan esos números.",
+  why: "Todo en IA es un modelo. Una vez que ves un modelo como una función con números aprendidos, el resto de esta ruta trata de cómo se aprenden y se usan esos números.",
   body: `
 <h3>La idea en una frase</h3>
 <p>Un <b>modelo</b> es una función con algunos números ajustables adentro. Elegimos esos números para que la función dé buenas respuestas en los ejemplos.</p>

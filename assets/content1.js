@@ -3,7 +3,7 @@ addConcept({
   id: "model", title: "What is a model?", es: "¿qué es un modelo?",
   group: "foundations", prereqs: ["vars_functions", "math_basics"], minutes: 15,
   summary: "A model is a function with adjustable numbers (parameters). Training finds good numbers; inference is calling the function.",
-  why: "Everything in AI is a model. Once you see a model as a function with learned numbers, the rest of the hub is about how those numbers are learned and used.",
+  why: "Everything in AI is a model. Once you see a model as a function with learned numbers, the rest of this track is about how those numbers are learned and used.",
   body: `
 <h3>The idea in one sentence</h3>
 <p>A <b>model</b> is a function with some adjustable numbers inside. We choose the numbers so that the function gives good answers on examples.</p>

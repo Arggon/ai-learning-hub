@@ -47,13 +47,16 @@
     s.migratedFrom = { key: V1, at: new Date().toISOString(), done: Object.keys(s.done).length, quiz: Object.keys(s.quiz).length, dropped };
     return s;
   }
+  const readJson = (k) => { const raw = localStorage.getItem(k); if (raw == null) return { raw }; try { const v = JSON.parse(raw); return { raw, v: v && typeof v === "object" && !Array.isArray(v) ? v : undefined }; } catch { return { raw }; } };
   function load() {
     try {
-      const cur = localStorage.getItem(KEY); if (cur) return sanitize(JSON.parse(cur));
-      // One-time copy from the AI Learning Hub key. Runs only while KEY is empty, so it never overwrites new progress.
-      const old = localStorage.getItem(LEGACY_V2);
-      if (old) { const s = sanitize(JSON.parse(old)); s.copiedFrom = { key: LEGACY_V2, at: new Date().toISOString() }; localStorage.setItem(KEY, JSON.stringify(s)); return s; }
-      const v1 = localStorage.getItem(V1); if (v1) { const s = migrateV1(JSON.parse(v1)); localStorage.setItem(KEY, JSON.stringify(s)); return s; }
+      const cur = readJson(KEY); if (cur.v) return sanitize(cur.v);
+      // arggonLearn.v1 exists but is not a JSON object: keep the raw text for recovery and fall back to the old keys.
+      if (cur.raw != null) { console.warn(`Saved progress under ${KEY} is corrupt; trying older data.`); try { localStorage.setItem(KEY + ".corrupt", cur.raw); } catch {} }
+      // One-time copy from the AI Learning Hub key. Runs only while KEY is empty or corrupt, so it never overwrites valid progress.
+      const old = readJson(LEGACY_V2);
+      if (old.v) { const s = sanitize(old.v); s.copiedFrom = { key: LEGACY_V2, at: new Date().toISOString() }; localStorage.setItem(KEY, JSON.stringify(s)); return s; }
+      const v1 = readJson(V1); if (v1.v) { const s = migrateV1(v1.v); localStorage.setItem(KEY, JSON.stringify(s)); return s; }
     } catch (e) { console.warn("Could not read saved progress; starting fresh.", e); }
     return fresh();
   }
@@ -109,6 +112,9 @@
   const ready = (id) => BY[id].prereqs.every(isDone);
   const status = (id) => (isKnown(id) ? "known" : S.done[id] ? "done" : ready(id) ? "ready" : "locked");
   const learnable = () => C.filter((c) => !isKnown(c.id));
+  // One definition for "x/y concepts" in the header, the home cards and the progress page: concepts of the track
+  // that aren't already known, and how many of those are done.
+  const trackProgress = (tr) => { const ids = (tr ? tr.concepts() : C.map((c) => c.id)).filter((id) => BY[id] && !isKnown(id)); return { done: ids.filter((id) => S.done[id]).length, n: ids.length }; };
   function ancestors(id, acc = new Set()) { for (const p of BY[id].prereqs) if (!acc.has(p)) { acc.add(p); ancestors(p, acc); } return acc; }
   /* Personal order: walk the track; before each target insert its not-yet-known prerequisites (depth-first, prerequisites first). */
   function personalOrder() {
@@ -196,8 +202,8 @@
 
   /* ---------- shell ---------- */
   function header() {
-    const L = learnable(), doneN = L.filter((c) => S.done[c.id]).length;
-    $("#progress-mini").innerHTML = `<span>${doneN}/${L.length} ${t("concepts")}</span><span class="pbar"><span style="width:${L.length ? (100 * doneN) / L.length : 100}%"></span></span>`;
+    const { done: doneN, n: totalN } = trackProgress(activeTrack());
+    $("#progress-mini").innerHTML = `<span>${doneN}/${totalN} ${t("concepts")}</span><span class="pbar"><span style="width:${totalN ? (100 * doneN) / totalN : 100}%"></span></span>`;
     const h = location.hash || "#/home";
     document.querySelectorAll("header nav a").forEach((a) => { a.classList.toggle("active", h.startsWith(a.getAttribute("href"))); a.textContent = t(a.dataset.i18n); });
     $(".brand small").textContent = t("tagline");
@@ -307,6 +313,9 @@
   }
   function importState(obj) {
     if (!obj || typeof obj !== "object") throw new Error("not a JSON object");
+    // Accepts arggon-learn-progress.json and files exported by AI Learning Hub (ai-hub-progress.json, same v2 shape, no "app" field)
+    // and its v1 format. The file name doesn't matter; only the content is checked.
+    if (obj.app !== undefined && obj.app !== "arggon-learn") throw new Error("exported by another app: " + obj.app);
     if (obj.version === 2) return sanitize(obj);
     if (obj.done || obj.quiz) return migrateV1(obj);
     throw new Error("no progress fields (done / quiz) found");
@@ -315,8 +324,8 @@
     const msg = $("#data-msg", root);
     $("#export", root).onclick = () => {
       const a = document.createElement("a");
-      a.href = URL.createObjectURL(new Blob([JSON.stringify({ ...S, exportedAt: new Date().toISOString() }, null, 2)], { type: "application/json" }));
-      a.download = "ai-hub-progress.json"; document.body.append(a); a.click(); a.remove();
+      a.href = URL.createObjectURL(new Blob([JSON.stringify({ app: "arggon-learn", ...S, exportedAt: new Date().toISOString() }, null, 2)], { type: "application/json" }));
+      a.download = "arggon-learn-progress.json"; document.body.append(a); a.click(); a.remove();
     };
     $("#import-file", root).onchange = async (e) => {
       const f = e.target.files[0]; if (!f) return;
@@ -476,10 +485,10 @@
   /* Home: the track picker. Works with one track today; each new entry in LEARN_TRACKS adds a card. */
   function viewHome(main) {
     const cards = TRACK_LIST.map((tr) => {
-      const ids = tr.concepts(), done = ids.filter((id) => S.done[id]).length, cp = tr.copy[S.settings.uiLang] || tr.copy.en;
+      const { done, n } = trackProgress(tr), cp = tr.copy[S.settings.uiLang] || tr.copy.en;
       return `<a class="card track-card" href="#/track/${esc(tr.id)}" style="border-color:${esc(tr.color)}"><div class="track-icon" aria-hidden="true">${esc(tr.icon)}</div>
         <div><h2>${esc(cp.name)}</h2><p class="muted">${esc(cp.tagline)}</p><p>${esc(cp.card)}</p>
-        <p class="small"><b>${t("track_concepts", { done, n: ids.length })}</b> · <span class="btn small">${t("track_open")} →</span></p></div></a>`;
+        <p class="small"><b>${t("track_concepts", { done, n })}</b> · <span class="btn small">${t("track_open")} →</span></p></div></a>`;
     }).join("");
     main.innerHTML = `<section class="card intro"><h1>${t("home_title")}</h1><p>${t("home_p")}</p></section>
       <div class="track-grid">${cards}</div><p class="muted small">${t("tracks_soon")}</p>`;
