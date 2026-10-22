@@ -108,7 +108,7 @@ const BASE = { version: 2, skipped: true, done: { web_apis: true }, quiz: { web_
     await section(`6. Import ${name}: confirm → replaced`, seeded({ "arggonLearn.v1": BASE }), async (s) => {
       const r = await importFile(s.p, file, text);
       const S = await s.p.evaluate(() => HUB.S);
-      ok(s.dialogs.length === 1 && /Replace your current progress \(1 concepts done, 1 quiz scores\)/.test(s.dialogs[0]), "asks for confirmation first: " + (s.dialogs[0] || "(no dialog)").slice(0, 90));
+      ok(s.dialogs.length === 1 && /Replace your current progress \(1 concept done, 1 quiz score\)/.test(s.dialogs[0]), "asks for confirmation first: " + (s.dialogs[0] || "(no dialog)").slice(0, 90));
       ok(check(S) && r.cls === "good" && /Imported ✔|Importado ✔/.test(r.msg), `progress replaced and success shown (in the imported file's language): "${r.msg}"`);
     });
   }
@@ -118,12 +118,43 @@ const BASE = { version: 2, skipped: true, done: { web_apis: true }, quiz: { web_
       const before = await state(s.p);
       const r = await importFile(s.p, "arggon-learn-progress.json", JSON.stringify({ app: "arggon-learn", version: 2, done: { db_basics: true, chatbot_use: true }, quiz: {}, settings: { uiLang: lang === "en" ? "es" : "en", theme: "dark" } }));
       const after = await state(s.p);
-      const want = lang === "en" ? /^Replace your current progress \(1 concepts done, 1 quiz scores\) with the file's \(2 concepts done, 0 quiz scores\)\?/ : /^¿Reemplazar tu progreso actual \(1 conceptos hechos, 1 puntajes de quiz\) por el del archivo \(2 conceptos hechos, 0 puntajes de quiz\)\?/;
+      const want = lang === "en" ? /^Replace your current progress \(1 concept done, 1 quiz score\) with the file's \(2 concepts done, 0 quiz scores\)\?/ : /^¿Reemplazar tu progreso actual \(1 concepto hecho, 1 puntaje de quiz\) por el del archivo \(2 conceptos hechos, 0 puntajes de quiz\)\?/;
       ok(s.dialogs.length === 1 && want.test(s.dialogs[0]), `confirmation is in ${lang}: ` + (s.dialogs[0] || "(no dialog)").slice(0, 90));
       ok(after.S === before.S && after.stored === before.stored && after.lang === before.lang, "state, storage and language unchanged after cancelling");
       ok(lang === "en" ? r.msg === "Import cancelled. Your progress was not changed." : r.msg === "Importación cancelada. Tu progreso no cambió.", `cancel message: "${r.msg}"`);
     }, { dialog: "dismiss" });
   }
+
+  // Singular/plural in the confirmation, EN and ES: current state 1/1, file 1 / 2 / 0.
+  for (const lang of ["en", "es"]) {
+    const cases = [
+      [{ done: { db_basics: true }, quiz: { db_basics: { best: 1, last: 1 } } }, lang === "en" ? "(1 concept done, 1 quiz score)?" : "(1 concepto hecho, 1 puntaje de quiz)?"],
+      [{ done: { db_basics: true, chatbot_use: true }, quiz: { db_basics: { best: 1, last: 1 }, chatbot_use: { best: 1, last: 1 } } }, lang === "en" ? "(2 concepts done, 2 quiz scores)?" : "(2 conceptos hechos, 2 puntajes de quiz)?"],
+      [{ done: {}, quiz: {}, manualKnown: { db_basics: true } }, lang === "en" ? "(0 concepts done, 0 quiz scores)?" : "(0 conceptos hechos, 0 puntajes de quiz)?"],
+    ];
+    for (const [file, want] of cases) {
+      await section(`7b. Confirmation plurals (${lang}): ${want}`, seeded({ "arggonLearn.v1": { ...BASE, settings: { uiLang: lang } } }), async (s) => {
+        await importFile(s.p, "f.json", JSON.stringify({ app: "arggon-learn", version: 2, ...file }));
+        const cur = lang === "en" ? "(1 concept done, 1 quiz score)" : "(1 concepto hecho, 1 puntaje de quiz)";
+        ok(s.dialogs.length === 1 && s.dialogs[0].includes(cur) && s.dialogs[0].includes(want), "dialog: " + (s.dialogs[0] || "(none)"));
+      }, { dialog: "dismiss" });
+    }
+  }
+
+  await section("7c. File input is reset after a successful import", seeded({ "arggonLearn.v1": BASE }), async (s) => {
+    const text = JSON.stringify({ app: "arggon-learn", version: 2, done: { db_basics: true }, quiz: {} });
+    await s.p.evaluate(() => (location.hash = "#/settings")); await s.p.waitForSelector("#import-file", { state: "attached" });
+    await s.p.evaluate(() => (window.__inp = document.querySelector("#import-file"))); // keep the element that receives the file
+    const r = await importFile(s.p, "same.json", text);
+    ok(r.cls === "good", "import succeeded");
+    ok(await s.p.evaluate(() => window.__inp.value === "" && window.__inp.files.length === 0), "the input that received the file was cleared after success");
+  });
+
+  await section("7d. ES wording fixes", {}, async ({ p }) => {
+    const w = await p.evaluate(() => JSON.stringify(window.ES.concepts));
+    ok(w.includes("Revisás la fuente por tu cuenta") && !w.includes("vos mismo"), "'por tu cuenta' replaces 'vos mismo'");
+    ok((w.match(/quienes programan en \.NET/g) || []).length === 2 && !w.includes("desarrolladores .NET"), "'quienes programan en .NET' replaces 'desarrolladores .NET' (2 places)");
+  });
 
   await section('8. app:"other" is rejected', seeded({ "arggonLearn.v1": BASE }), async (s) => {
     const before = await state(s.p);
