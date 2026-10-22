@@ -24,6 +24,11 @@ const SAME_OK = new Set(["API", "JSON", "SQL", "RAG", "MCP", "LLM", "LoRA", "RLH
 const prose = (s) => typeof s === "string" && /[A-Za-z]{3,}.*\s.*[A-Za-z]{3,}/.test(s.replace(/<[^>]+>|`[^`]*`|\[\[[^\]]*\]\]/g, ""));
 const same = (en, es, where) => { if (typeof en === "string" && en === es && prose(en) && !SAME_OK.has(en.trim())) err(`${where}: Spanish equals English: ${JSON.stringify(en.slice(0, 80))}`); };
 const tags = (s) => [...String(s || "").matchAll(/<\/?([a-z][a-z0-9]*)/gi)].map((m) => m[1].toLowerCase());
+// Spanish HTML must not introduce tags the English source doesn't use (these strings go into innerHTML).
+const tagsSubset = (en, es, where) => { const enT = new Set(tags(en)); for (const tg of tags(es)) if (!enT.has(tg)) err(`${where}: Spanish uses <${tg}>, which the English text doesn't`); };
+// Mermaid diagrams: labels are "…" strings, edge labels -- "…" -->, and Note text. Structure = the source with labels removed.
+const dLabels = (d) => [...String(d).matchAll(/"([^"]*)"/g)].map((m) => m[1]).concat([...String(d).matchAll(/Note over [^:]+:\s*(.+)/g)].map((m) => m[1].trim()));
+const dShape = (d) => String(d).replace(/"[^"]*"/g, '""').replace(/(Note over [^:]+:).*/g, "$1").replace(/(participant \w+ as).*/g, "$1").replace(/(->>?|-->>?)\s*(\w+):.*$/gm, "$1 $2:").replace(/\s+/g, " ").trim();
 const missing = (v) => v == null || (typeof v === "string" && !v.trim());
 const glossKeys = (s) => [...String(s || "").matchAll(/\[\[([^|\]]+)(?:\|[^\]]*)?\]\]/g)].map((m) => m[1]).sort().join(",");
 
@@ -31,6 +36,7 @@ const glossKeys = (s) => [...String(s || "").matchAll(/\[\[([^|\]]+)(?:\|[^\]]*)
 for (const [k, en] of Object.entries(I18N.en)) {
   const es = I18N.es[k];
   if (missing(es)) err(`I18N.es.${k}: missing`); else same(en, es, `I18N.es.${k}`);
+  if (!missing(es)) tagsSubset(en, es, `I18N.es.${k}`); // UI strings are inserted with innerHTML
 }
 for (const k of Object.keys(I18N.es)) if (!(k in I18N.en)) err(`I18N.es.${k}: no English key`);
 // 2. Onboarding
@@ -43,6 +49,16 @@ for (const c of CONCEPTS) {
   const e = ES.concepts[c.id], w = `concept ${c.id}`;
   if (!e) { err(`${w}: no Spanish entry`); continue; }
   for (const f of ["title", "summary", "why", "body"]) { if (missing(e[f])) err(`${w}.${f}: missing`); else same(c[f], e[f], `${w}.${f}`); }
+  if (c.diagram) {
+    if (missing(e.diagram)) err(`${w}.diagram: missing`);
+    else {
+      if (dShape(c.diagram) !== dShape(e.diagram)) err(`${w}.diagram: structure differs from English (node ids, edges or line count)`);
+      const enL = dLabels(c.diagram).join("\n"), esL = dLabels(e.diagram).join("\n");
+      if (enL === esL) err(`${w}.diagram: labels are not translated`);
+      const a = dLabels(c.diagram), b = dLabels(e.diagram); a.forEach((l, i) => same(l, b[i], `${w}.diagram label ${i}`));
+      for (const d of [["en", c.diagram], ["es", e.diagram]]) for (const l of dLabels(d[1])) if (/^\s*([-+*]|\d+\.)\s/.test(l)) err(`${w}.diagram (${d[0]}): label ${JSON.stringify(l)} starts like a Markdown list; Mermaid shows "Unsupported markdown: list"`);
+    }
+  }
   if (glossKeys(c.body) !== glossKeys(e.body)) err(`${w}.body: glossary keys differ from English`);
   // Spanish HTML must not introduce tags the English source doesn't use (content goes into innerHTML).
   for (const f of ["body", "task"]) { const enT = new Set(tags(f === "task" ? ((EXERCISES[c.id] && EXERCISES[c.id].task) || (c.exercise && c.exercise.task)) : c[f])); for (const tg of tags(e[f])) if (!enT.has(tg)) err(`${w}.${f}: Spanish uses <${tg}>, which the English text doesn't`); }
@@ -74,7 +90,7 @@ for (const id of Object.keys(ES.concepts)) if (!CONCEPTS.some((c) => c.id === id
 for (const [k, def] of Object.entries(GLOSSARY)) {
   const e = ES.glossary[k];
   if (!Array.isArray(e) || missing(e[0]) || missing(e[1])) err(`glossary ${k}: missing [term, definition]`);
-  else same(typeof def === "string" ? def : def.def, e[1], `glossary ${k}`);
+  else { same(typeof def === "string" ? def : def.def, e[1], `glossary ${k}`); tagsSubset(typeof def === "string" ? def : def.def, e[1] + " " + e[0], `glossary ${k}`); }
 }
 // 5. Groups
 for (const g of Object.keys(GROUPS || {})) if (missing(ES.groups && ES.groups[g])) err(`group ${g}: missing Spanish label`);

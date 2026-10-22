@@ -84,3 +84,13 @@ llm_api: {
   task: "Escribí un programa de chat mínimo en la terminal: mantené una lista de mensajes, agregá en cada turno lo que escribe el usuario y la respuesta del asistente, e imprimí el uso de tokens después de cada respuesta. Fijate cómo crecen los tokens de entrada a medida que se alarga la conversación. (Sacá el id del modelo actual de la documentación del proveedor; los ejemplos usan la API Messages de Anthropic, y la API de OpenAI funciona igual.)"
 },
 });
+
+/* Diagram (Mermaid): same structure as the English one, labels translated. */
+window.ES.concepts.llm_api.diagram = `sequenceDiagram
+  participant App
+  participant LLM as API del LLM
+  App->>LLM: [system, user1]
+  LLM-->>App: assistant1 (uso: 120 de entrada / 80 de salida)
+  App->>LLM: [system, user1, assistant1, user2]
+  Note over App,LLM: Reenviás todo el historial: la entrada crece en cada turno
+  LLM-->>App: assistant2 (uso: 230 de entrada / 95 de salida)`;

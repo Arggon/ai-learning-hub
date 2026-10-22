@@ -117,3 +117,12 @@ cost: {
   task: "Escribí un medidor de uso que registre (funcionalidad, tokens de entrada, tokens de salida, tokens cacheados) de cada respuesta de la API y calcule el costo con precios configurables por millón de tokens. Al final de una corrida, imprimí el costo por funcionalidad."
 },
 });
+
+/* Diagram (Mermaid): same structure as the English one, labels translated. */
+window.ES.concepts.mcp.diagram = `flowchart LR
+  subgraph Host["Host (anfitrión): Claude Code / VS Code"]
+    LLM["LLM"] <--> C1["Cliente MCP 1"]
+    LLM <--> C2["Cliente MCP 2"]
+  end
+  C1 <-- "JSON-RPC por stdio" --> S1["Servidor local<br/>(tu herramienta .NET)"]
+  C2 <-- "JSON-RPC por HTTP" --> S2["Servidor remoto<br/>(GitHub, base de datos…)"]`;

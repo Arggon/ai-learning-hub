@@ -79,3 +79,16 @@ finetuning: {
   task: "Escribí un conversor que transforme tickets de soporte (pregunta, mejor respuesta) en un archivo JSONL de ajuste fino con el formato de chat común: un objeto JSON por línea, <code>{\"messages\":[{\"role\":\"system\",...},{\"role\":\"user\",...},{\"role\":\"assistant\",...}]}</code>."
 },
 });
+
+/* Diagrams (Mermaid). Same structure and node ids as the English ones; only the labels are translated. */
+window.ES.concepts.transformers.diagram = `flowchart TB
+  T["IDs de tokens"] --> E["Embedding + posición"]
+  E --> B1
+  subgraph B1["Bloque transformer × N"]
+    direction TB
+    N1["LayerNorm"] --> A["Atención multi-cabeza enmascarada"] --> R1(("suma residual"))
+    R1 --> N2["LayerNorm"] --> M["MLP (red feed-forward)"] --> R2(("suma residual"))
+  end
+  B1 --> U["Des-embedding → logits"] --> S["Softmax → P(próximo token)"]`;
+window.ES.concepts.pretraining.diagram = `flowchart LR
+  W["Web, libros, código<br/>(billones de tokens)"] --> F["Filtrar + deduplicar"] --> TK["Tokenizar"] --> TR["Entrenar el transformer<br/>predecir el próximo token<br/>(semanas en GPUs)"] --> BM["Modelo base<br/>(completa documentos)"]`;

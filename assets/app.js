@@ -59,11 +59,11 @@
   /* Localized content: concept fields read the Spanish overlay (window.ES) when the UI is in Spanish. */
   const ESD = window.ES || { concepts: {}, glossary: {}, groups: {}, short: {}, comments: {} };
   for (const c of C) {
-    const en = { title: c.title, summary: c.summary, why: c.why, body: c.body, quiz: c.quiz, resources: c.resources };
+    const en = { title: c.title, summary: c.summary, why: c.why, body: c.body, quiz: c.quiz, resources: c.resources, diagram: c.diagram };
     c._en = en;
     const es = () => (isEs() && ESD.concepts[c.id]) || null;
     const def = (k, f) => Object.defineProperty(c, k, { get: () => { const e = es(); return e ? f(e) : en[k]; }, configurable: true });
-    def("title", (e) => e.title); def("summary", (e) => e.summary); def("why", (e) => e.why); def("body", (e) => e.body);
+    def("title", (e) => e.title); def("summary", (e) => e.summary); def("why", (e) => e.why); def("body", (e) => e.body); def("diagram", (e) => e.diagram || en.diagram);
     def("quiz", (e) => en.quiz.map((q, i) => ({ ...q, q: e.quiz[i][0], options: e.quiz[i][1], why: e.quiz[i][2] })));
     def("resources", (e) => en.resources.map((r, i) => ({ ...r, note: e.res[i] })));
   }

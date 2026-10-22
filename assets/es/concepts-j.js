@@ -93,3 +93,19 @@ multi_agent: {
   task: "Implementá fan-out/fan-in: un orquestador reparte 6 preguntas de investigación entre subagentes, corre como máximo 3 al mismo tiempo (cada una es una tarea simulada que espera 0,5 s) y después combina los resultados. Compará el tiempo total con correrlas una después de la otra."
 },
 });
+
+/* Diagrams (Mermaid): same structure as the English ones, labels translated. */
+window.ES.concepts.agents.diagram = `flowchart LR
+  G["Objetivo + prompt de sistema"] --> L{{"El LLM decide"}}
+  L -- "llamada a herramienta" --> T["El harness ejecuta la herramienta<br/>(read_file, run_tests, edit)"]
+  T -- "observación" --> L
+  L -- "listo / máx. de pasos / necesita a una persona" --> E["Frenar + informar"]`;
+window.ES.concepts.multi_agent.diagram = `flowchart TB
+  U["Tarea"] --> O["Agente orquestador<br/>(planifica + divide)"]
+  O --> S1["Subagente 1<br/>contexto propio"]
+  O --> S2["Subagente 2<br/>contexto propio"]
+  O --> S3["Subagente 3<br/>contexto propio"]
+  S1 --> SY["El orquestador sintetiza"]
+  S2 --> SY
+  S3 --> SY
+  SY --> R["Resultado + citas"]`;
