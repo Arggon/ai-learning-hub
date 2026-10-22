@@ -1,4 +1,4 @@
-/* AI Learning Hub — concept data (part 0: getting-started foundations, for learners with no background)
+/* Arggon Learn, AI track — concept data (part 0: getting-started foundations, for learners with no background)
    Markup: [[term|Spanish gloss]] renders as a glossary link (Spanish shown only when the UI language is Spanish). */
 window.R = String.raw;
 window.CONCEPTS = [];

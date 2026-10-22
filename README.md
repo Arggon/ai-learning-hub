@@ -1,6 +1,14 @@
-# AI Learning Hub
+# Arggon Learn
 
-A prerequisite-first, interactive static site for learning AI from the ground up: programming and math basics through language models, agents, MCP, evals and safety. English and Spanish (Argentine) UI.
+A prerequisite-first, interactive learning platform. Every lesson starts by asking "what do I need to know before this?", and progress stays in your browser. The interface is in English and in Spanish (Argentina, voseo).
+
+**Tracks**
+- **Artificial intelligence** (available): programming and math basics through language models, agents, MCP, evals and safety.
+- More subjects will follow. Each one is a new entry in `assets/tracks.js`.
+
+---
+
+Plataforma de aprendizaje interactiva pensada desde los requisitos: cada lección empieza preguntando "¿qué necesito saber antes?", y tu progreso queda en tu navegador. La primera ruta es **inteligencia artificial**; se vienen más temas.
 
 ## Run locally
 
@@ -10,11 +18,19 @@ No build step. Open `index.html` in a browser, or serve the folder:
 python3 -m http.server 8000
 ```
 
-Progress is stored only in your browser (localStorage). Diagrams load Mermaid from the jsDelivr CDN.
+Progress is stored only in your browser (localStorage key `arggonLearn.v1`). On first load, progress saved by the previous name (AI Learning Hub, key `aiHub.v2`) is copied over once; the old key is left untouched. Diagrams load Mermaid from the jsDelivr CDN.
+
+## Adding a track
+
+Add an entry to `window.LEARN_TRACKS` in `assets/tracks.js` with an `id`, `icon`, `color`, a `concepts()` list and `copy` in every UI language (`en` and `es`). The home page shows one card per track. `scripts/check-i18n.mjs` checks the track copy too.
 
 ## Translations
 
 Spanish (Argentina, voseo) lives in `assets/es/`. English is the source of truth.
 
-- `node scripts/check-i18n.mjs` — static check (also runs in CI): every English UI string, concept field, quiz item, resource note, glossary term and code comment must have a Spanish value that is not a copy of the English prose.
+- `node scripts/check-i18n.mjs` — static check (also runs in CI): every English UI string, track copy, concept field, quiz item, resource note, glossary term, diagram and code comment must have a Spanish value that is not a copy of the English prose.
 - `node scripts/check-i18n-browser.cjs` — optional headless scan of the live page in Spanish mode (needs `playwright-core` and Chrome; set `PW_CORE` and `CHROME`).
+
+## Tests
+
+`npm ci && npx playwright install chromium`, then `npm run test:migration` (storage migration and home page) and `npm run check:i18n:browser`. CI runs both on every pull request.

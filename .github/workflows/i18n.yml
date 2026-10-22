@@ -11,3 +11,19 @@ jobs:
           node-version: 20
       - name: Check every English string has a Spanish translation
         run: node scripts/check-i18n.mjs
+  browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install Node deps
+        run: npm ci
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Storage migration + home test
+        run: npm run test:migration
+      - name: Browser i18n scan (Spanish mode, all pages and concepts)
+        run: npm run check:i18n:browser

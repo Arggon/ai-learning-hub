@@ -6,9 +6,9 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const A = (f) => path.join(root, "assets", f);
 const ctx = { console }; ctx.window = ctx; ctx.String = String; vm.createContext(ctx);
 const load = (f) => vm.runInContext(fs.readFileSync(A(f), "utf8"), ctx, { filename: f });
-["content0.js", "content1.js", "content2.js", "content3.js", "content4.js", "exercises1.js", "exercises2.js", "glossary.js", "i18n.js"].forEach(load);
+["content0.js", "content1.js", "content2.js", "content3.js", "content4.js", "tracks.js", "exercises1.js", "exercises2.js", "glossary.js", "i18n.js"].forEach(load);
 fs.readdirSync(A("es")).filter((f) => f.endsWith(".js")).sort().forEach((f) => load("es/" + f));
-const { CONCEPTS, GLOSSARY, I18N, ONBOARDING, EXERCISES, ES, GROUPS } = ctx;
+const { LEARN_TRACKS, CONCEPTS, GLOSSARY, I18N, ONBOARDING, EXERCISES, ES, GROUPS } = ctx;
 const errors = [];
 const err = (m) => errors.push(m);
 // SAME_OK: the allowlist of strings that may legitimately be identical in English and Spanish.
@@ -44,6 +44,16 @@ for (const k of Object.keys(I18N.es)) if (!(k in I18N.en)) err(`I18N.es.${k}: no
   const walk = (o, p) => { for (const [k, v] of Object.entries(o)) { if (k === "en" && typeof v === "string") { if (missing(o.es)) err(`ONBOARDING${p}: missing es`); else same(v, o.es, `ONBOARDING${p}`); } else if (v && typeof v === "object") walk(v, `${p}.${k}`); } };
   walk(q, `[${i}]`);
 });
+// 2b. Track registry copy (assets/tracks.js)
+for (const tr of LEARN_TRACKS || []) {
+  const en = tr.copy && tr.copy.en, es = tr.copy && tr.copy.es;
+  if (!en) { err(`track ${tr.id}: no English copy`); continue; }
+  for (const [k, v] of Object.entries(en)) {
+    const e = es && es[k];
+    if (missing(e)) err(`track ${tr.id}.copy.es.${k}: missing`); else { same(v, e, `track ${tr.id}.copy.es.${k}`); tagsSubset(v, e, `track ${tr.id}.copy.es.${k}`); }
+  }
+  for (const id of tr.concepts()) if (!CONCEPTS.some((c) => c.id === id)) err(`track ${tr.id}: unknown concept ${id}`);
+}
 // 3. Concepts
 for (const c of CONCEPTS) {
   const e = ES.concepts[c.id], w = `concept ${c.id}`;
