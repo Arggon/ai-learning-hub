@@ -1,4 +1,4 @@
-/* UI strings. Lesson text is English; Spanish covers the interface, the onboarding, concept titles and glossary glosses. */
+/* UI strings (EN + ES, Argentine voseo). Lesson content in Spanish lives in assets/es/*.js. scripts/check-i18n.mjs keeps them in sync. */
 window.I18N = {
   en: {
     tagline: "learn AI from the ground up", nav_map: "Map", nav_path: "Learning path", nav_progress: "Progress", nav_glossary: "Glossary", nav_settings: "Settings",
@@ -24,55 +24,91 @@ window.I18N = {
     path_title: "Your personal learning path", path_p: "Based on your track and what you already know. Missing prerequisites are inserted automatically right before the concept that needs them.", path_known: "Skipped because you know them", path_hours: "≈ {h} h left",
     why_order: "Why this order?", progress_title: "Progress", group: "Group", status: "Status", quiz_col: "Quiz (best / last)", done_col: "Done", personalize: "Personalize the hub", personalize_p: "You haven't answered the self-assessment yet, so nothing is marked as known.",
     map_title: "Your AI map, built from prerequisites", map_p: "Every concept asks first: <b>\"what do I need to know before this?\"</b> Arrows go <b>from a prerequisite to the concept that needs it</b>. We follow the arrows back until we reach what you told us you already know (🟢) — or all the way to the first steps if you're new. Click any box to open its page.",
-    group_by: "group by topic", map_hint: "Scroll inside the box to pan. #n = position on your path. Click a box to open it.", border_topic: "border = topic:"
+    group_by: "group by topic", map_hint: "Scroll inside the box to pan. #n = position on your path. Click a box to open it.", border_topic: "border = topic:",
+    graph_title: "Prerequisite graph", graph_aria: "Curriculum prerequisite graph", zoom_in: "zoom in", zoom_out: "zoom out", zoom_fit: "fit",
+    quiz_short: "quiz", needs_label: "needs:", quizzes: "quizzes", concept_col: "Concept",
+    why_order_1: "<b>Foundations</b> (programming, data, the web, the math) are inserted only where a later concept needs them — and skipped if you already know them.",
+    why_order_2: "<b>Using a chatbot well</b> comes first for beginners: it pays off immediately and builds intuition for prompting and agents.",
+    why_order_3: "On the <b>builder</b> track, what an LLM really does (tokens, probabilities, context) comes early, because it explains most surprising behavior: made-up answers, forgetting, cost.",
+    why_order_4: "Then the practical stack: APIs, prompting, tools, agents, MCP, cost, evals and safety, then retrieval (RAG).",
+    why_order_5: "The <b>theory</b> track (how models are trained) can be done in any order once its prerequisites are covered — one theory page a week works well alongside the builder track.",
+    lang_pseudo: "Pseudocode", lang_any: "Template",
+    run_pseudo: "Pseudocode is for reading, not running: translate it into any language, or pick a language tab to see real code.",
+    run_python: "Save as <code>main.py</code> and run <code>python main.py</code> (Python 3.10+). If an import is missing, install it with <code>pip install …</code> as noted in the code.",
+    run_ts: "Save as <code>main.mts</code> and run <code>npx tsx main.mts</code> (Node 18+). Packages noted in the code install with <code>npm install …</code>.",
+    run_csharp: "<code>dotnet new console -n Try</code>, paste into <code>Program.cs</code> (top-level statements), then <code>dotnet run</code> (.NET 8+). Add packages with <code>dotnet add package …</code> where noted.",
+    run_any: "No code needed — copy the template and fill it in.",
+    copy_fail: "Select & copy", not_found: "Concept not found.", back_to_map: "Back to the map",
+    rt_video: "video", rt_docs: "docs", rt_reading: "reading", in_english: "", on_path: "#{n} on your path", viz_error: "Visualization error: ",
+    quiz_meta: "{n} questions · instant feedback", quiz_best: " · best so far: {b}/{n}", q_correct: "✔ Correct.", q_wrong: "✘ Not quite.", q_score: "Score: {s}/{n}", q_great: "— great!", q_mark_done: "Mark concept as done", q_review: "— review the explanation and the resources, then retry.", q_retry: "Retry quiz",
+    mm_fallback: "(Diagram library could not load — showing the diagram source.)",
+    doc_title: "AI Learning Hub — learn AI from the ground up", footer: "Explanations are simplified on purpose. Links were checked on 2026-10-21. Progress lives only in your browser (localStorage). Diagrams use Mermaid from the jsDelivr CDN; everything else is local.", theme_toggle: "Light / dark", loading: "Loading…"
   },
   es: {
-    tagline: "aprende IA desde cero", nav_map: "Mapa", nav_path: "Ruta de aprendizaje", nav_progress: "Progreso", nav_glossary: "Glosario", nav_settings: "Ajustes",
+    tagline: "aprendé IA desde cero", nav_map: "Mapa", nav_path: "Ruta de aprendizaje", nav_progress: "Progreso", nav_glossary: "Glosario", nav_settings: "Ajustes",
     concepts: "conceptos", theme: "Tema", lang_btn: "EN",
-    st_known: "ya lo sabes", st_done: "hecho", st_ready: "listo para aprender", st_locked: "necesita requisitos",
-    next_kicker: "Siguiente concepto recomendado", start: "Empezar →", why_next: "Por qué este: es el siguiente paso de tu ruta ({track}) y ya tienes todo lo que necesita.", needs_first: "Aprende antes: {list}.",
-    all_done: "🎉 ¡Terminaste todo!", all_done_p: "Ahora construye algo real: un agente pequeño con una herramienta MCP y un conjunto de evals que lo pruebe.",
-    welcome_title: "¡Bienvenido! Adaptemos este sitio a ti", welcome_p1: "Este sitio enseña cómo funciona la IA moderna: desde qué es un programa hasta modelos de lenguaje, agentes y seguridad. Cada concepto empieza preguntando <b>\"¿qué necesito saber antes?\"</b>, para que nunca te quedes atascado.",
-    welcome_p2: "Responde unas preguntas rápidas (1 minuto). Tus respuestas solo deciden qué conceptos se marcan como <b>ya conocidos</b> (🟢) y qué ruta sugerimos. No se asume nada y puedes cambiarlo después en Ajustes.",
-    save_start: "Guardar y ver mi mapa →", skip: "Saltar — empezar de cero", preview: "Con estas respuestas: {n} concepto(s) marcados como conocidos ({list}). Ruta sugerida: <b>{track}</b>. Ejemplos de código en: <b>{lang}</b>.", none: "ninguno",
-    migrated: "Encontramos progreso de la versión anterior y lo conservamos ({done} conceptos hechos, {quiz} puntajes de quiz). Se quitaron los supuestos de \"ya lo sabes\" anteriores: cuéntanos abajo qué sabes.",
+    st_known: "ya lo sabés", st_done: "hecho", st_ready: "listo para aprender", st_locked: "necesita requisitos",
+    next_kicker: "Siguiente concepto recomendado", start: "Empezar →", why_next: "Por qué este: es el siguiente paso de tu ruta ({track}) y ya tenés todo lo que necesita.", needs_first: "Aprendé antes: {list}.",
+    all_done: "🎉 ¡Terminaste todo!", all_done_p: "Ahora construí algo real: un agente chico con una herramienta MCP y un conjunto de evals que lo pruebe.",
+    welcome_title: "¡Bienvenido! Adaptemos este hub a vos", welcome_p1: "Este hub enseña cómo funciona la IA moderna: desde qué es un programa hasta los modelos de lenguaje, los agentes y la seguridad. Cada concepto empieza preguntando <b>\"¿qué necesito saber antes?\"</b>, para que nunca te quedes trabado.",
+    welcome_p2: "Respondé unas preguntas rápidas (más o menos 1 minuto). Tus respuestas solo deciden qué conceptos se marcan como <b>ya conocidos</b> (🟢) y qué ruta te sugerimos. No se da nada por sentado, y podés cambiar todo después en Ajustes.",
+    save_start: "Guardar y ver mi mapa →", skip: "Saltear: empezar de cero", preview: "Con estas respuestas: {n} concepto(s) marcados como conocidos ({list}). Ruta sugerida: <b>{track}</b>. Ejemplos de código en: <b>{lang}</b>.", none: "ninguno",
+    migrated: "Encontramos progreso de la versión anterior de este hub y lo conservamos ({done} conceptos hechos, {quiz} puntajes de quiz). Se quitaron los supuestos anteriores de \"ya lo sabés\": contanos abajo qué sabés.",
     track_beginner: "Principiante: primero los fundamentos", track_builder: "Constructor: primero apps y agentes", track_theory: "Teoría: primero cómo funcionan los modelos", track_auto: "Automática (según mis respuestas)",
-    settings_title: "Ajustes", settings_profile: "Sobre ti (autoevaluación)", settings_profile_p: "Cambiar estas respuestas actualiza qué conceptos se marcan como conocidos y la ruta sugerida. Tu progreso se conserva.",
+    settings_title: "Ajustes", settings_profile: "Sobre vos (autoevaluación)", settings_profile_p: "Si cambiás estas respuestas, se actualizan los conceptos marcados como conocidos y la ruta sugerida. Tu progreso se conserva.",
     save: "Guardar", saved: "Guardado ✔", code_lang: "Lenguaje de los ejemplos de código", ui_lang: "Idioma de la interfaz", track: "Ruta de aprendizaje", theme_light: "Claro", theme_dark: "Oscuro",
-    known_title: "Lo que ya sabes", known_p: "Marca lo que ya sabes. Los árboles de requisitos se detienen ahí y no te lo sugeriremos.", from_answers: "según tus respuestas", marked_by_you: "marcado por ti",
-    data_title: "Tus datos", data_p: "El progreso se guarda solo en este navegador (clave de localStorage <code>{key}</code>). Exporta una copia o pásalo a otro navegador.", export: "Exportar progreso (JSON)", import: "Importar progreso…", import_ok: "Importado ✔", import_bad: "Ese archivo no parece progreso del sitio: {err}",
-    reset_progress: "Reiniciar progreso", reset_all: "Reiniciar todo (progreso + respuestas)", confirm_reset: "¿Reiniciar todo el progreso y los puntajes?", confirm_reset_all: "¿Reiniciar progreso, puntajes, respuestas y ajustes?",
-    glossary_title: "Glosario", glossary_p: "Todos los términos de las lecciones, explicados en inglés simple, con su traducción. Cada término está enlazado desde la lección donde aparece por primera vez.", search: "Buscar términos…", appears_in: "Aparece en", no_terms: "No hay términos que coincidan.",
-    before_this: "Antes de esto necesitas:", nothing_needed: "Nada: es un punto de partida.", learn_first: "¿Todavía no? Aprende esto primero, en este orden:", all_covered: "✔ Tienes todos los requisitos. Estás listo.", show_tree: "Ver el árbol completo de requisitos (recursivo, hasta lo que ya sabes)", unlocks: "Esto desbloquea:", stop_here: "— ya lo sabes, termina aquí", listed_above: "(ya aparece arriba)", needs: "necesita ↓",
-    why_learn: "Por qué aprenderlo:", try_it: "Pruébalo", diagram: "Diagrama", resources: "Mira / lee (lo mejor)", for_lang: "Para {lang}", quiz: "Quiz de autoevaluación", hands_on: "Práctica", copy: "Copiar", copied: "Copiado ✔",
-    mark_done: "Entendí este concepto — marcar como hecho", known_mark: "Ya sé esto", known_from_profile: "Marcado como conocido según tu autoevaluación.", undo_known: "En realidad necesito aprenderlo",
-    not_available: "No disponible en {lang} para este ejercicio — se muestra {shown}.",
-    path_title: "Tu ruta de aprendizaje personal", path_p: "Según tu ruta y lo que ya sabes. Los requisitos que faltan se agregan automáticamente justo antes del concepto que los necesita.", path_known: "Omitidos porque ya los sabes", path_hours: "≈ {h} h restantes",
-    why_order: "¿Por qué este orden?", progress_title: "Progreso", group: "Grupo", status: "Estado", quiz_col: "Quiz (mejor / último)", done_col: "Hecho", personalize: "Personaliza el sitio", personalize_p: "Todavía no respondiste la autoevaluación, así que nada está marcado como conocido.",
-    map_title: "Tu mapa de IA, construido a partir de requisitos", map_p: "Cada concepto pregunta primero: <b>\"¿qué necesito saber antes?\"</b> Las flechas van <b>del requisito al concepto que lo necesita</b>. Seguimos las flechas hacia atrás hasta llegar a lo que nos dijiste que ya sabes (🟢), o hasta los primeros pasos si eres nuevo. Haz clic en un recuadro para abrirlo.",
-    group_by: "agrupar por tema", map_hint: "Desplázate dentro del recuadro. #n = posición en tu ruta. Haz clic para abrir.", border_topic: "borde = tema:"
+    known_title: "Lo que ya sabés", known_p: "Marcá lo que ya sabés. Los árboles de requisitos se cortan ahí y no te lo vamos a sugerir.", from_answers: "según tus respuestas", marked_by_you: "marcado por vos",
+    data_title: "Tus datos", data_p: "El progreso se guarda solo en este navegador (clave de localStorage <code>{key}</code>). Exportá una copia o pasalo a otro navegador.", export: "Exportar progreso (JSON)", import: "Importar progreso…", import_ok: "Importado ✔", import_bad: "Ese archivo no parece progreso del hub: {err}",
+    reset_progress: "Reiniciar progreso", reset_all: "Reiniciar todo (progreso + respuestas)", confirm_reset: "¿Reiniciar todo el progreso y los puntajes de quiz?", confirm_reset_all: "¿Reiniciar progreso, puntajes, respuestas y ajustes?",
+    glossary_title: "Glosario", glossary_p: "Todos los términos de las lecciones, explicados en lenguaje simple, con el término original en inglés entre paréntesis. Cada término está enlazado desde la lección donde aparece por primera vez.", search: "Buscar términos…", appears_in: "Aparece en", no_terms: "No hay términos que coincidan.",
+    before_this: "Antes de esto necesitás:", nothing_needed: "Nada: es un punto de partida.", learn_first: "¿Todavía no? Aprendé esto primero, en este orden:", all_covered: "✔ Tenés todos los requisitos. Estás listo.", show_tree: "Ver el árbol completo de requisitos (recursivo, hasta lo que ya sabés)", unlocks: "Esto desbloquea:", stop_here: "— ya lo sabés, termina acá", listed_above: "(ya aparece arriba)", needs: "necesita ↓",
+    why_learn: "Por qué aprenderlo:", try_it: "Probalo", diagram: "Diagrama", resources: "Mirá / leé (lo mejor)", for_lang: "Para {lang}", quiz: "Quiz de autoevaluación", hands_on: "Práctica", copy: "Copiar", copied: "Copiado ✔",
+    mark_done: "Entendí este concepto: marcar como hecho", known_mark: "Ya sé esto", known_from_profile: "Marcado como conocido según tu autoevaluación.", undo_known: "En realidad necesito aprenderlo",
+    not_available: "No está disponible en {lang} para este ejercicio: se muestra {shown}.",
+    path_title: "Tu ruta de aprendizaje personal", path_p: "Según tu ruta y lo que ya sabés. Los requisitos que faltan se agregan automáticamente justo antes del concepto que los necesita.", path_known: "Salteados porque ya los sabés", path_hours: "≈ {h} h restantes",
+    why_order: "¿Por qué este orden?", progress_title: "Progreso", group: "Grupo", status: "Estado", quiz_col: "Quiz (mejor / último)", done_col: "Hecho", personalize: "Personalizá el hub", personalize_p: "Todavía no respondiste la autoevaluación, así que no hay nada marcado como conocido.",
+    map_title: "Tu mapa de IA, armado a partir de requisitos", map_p: "Cada concepto pregunta primero: <b>\"¿qué necesito saber antes?\"</b> Las flechas van <b>del requisito al concepto que lo necesita</b>. Seguimos las flechas hacia atrás hasta llegar a lo que nos dijiste que ya sabés (🟢), o hasta los primeros pasos si sos nuevo. Hacé clic en un recuadro para abrirlo.",
+    group_by: "agrupar por tema", map_hint: "Desplazate dentro del recuadro. #n = posición en tu ruta. Hacé clic para abrir.", border_topic: "borde = tema:",
+    graph_title: "Grafo de requisitos", graph_aria: "Grafo de requisitos del plan de estudios", zoom_in: "acercar", zoom_out: "alejar", zoom_fit: "ajustar",
+    quiz_short: "quiz", needs_label: "necesita:", quizzes: "quizzes", concept_col: "Concepto",
+    why_order_1: "Los <b>fundamentos</b> (programación, datos, la web, la matemática) se insertan solo donde un concepto posterior los necesita, y se saltean si ya los sabés.",
+    why_order_2: "<b>Usar bien un chatbot</b> va primero para principiantes: rinde enseguida y te da intuición para el prompting y los agentes.",
+    why_order_3: "En la ruta de <b>constructor</b>, lo que realmente hace un LLM (tokens, probabilidades, contexto) aparece temprano, porque explica la mayoría de los comportamientos sorprendentes: respuestas inventadas, olvidos, costo.",
+    why_order_4: "Después viene el stack práctico: APIs, prompting, herramientas, agentes, MCP, costo, evals y seguridad, y luego la recuperación (RAG).",
+    why_order_5: "La ruta de <b>teoría</b> (cómo se entrenan los modelos) se puede hacer en cualquier orden una vez cubiertos sus requisitos: una página de teoría por semana combina bien con la ruta de constructor.",
+    lang_pseudo: "Pseudocódigo", lang_any: "Plantilla",
+    run_pseudo: "El pseudocódigo es para leer, no para ejecutar: pasalo a cualquier lenguaje, o elegí una pestaña de lenguaje para ver código real.",
+    run_python: "Guardalo como <code>main.py</code> y corré <code>python main.py</code> (Python 3.10+). Si falta un import, instalalo con <code>pip install …</code> como se indica en el código.",
+    run_ts: "Guardalo como <code>main.mts</code> y corré <code>npx tsx main.mts</code> (Node 18+). Los paquetes indicados en el código se instalan con <code>npm install …</code>.",
+    run_csharp: "<code>dotnet new console -n Try</code>, pegalo en <code>Program.cs</code> (instrucciones de nivel superior) y después <code>dotnet run</code> (.NET 8+). Agregá paquetes con <code>dotnet add package …</code> donde se indique.",
+    run_any: "No hace falta código: copiá la plantilla y completala.",
+    copy_fail: "Seleccioná y copiá", not_found: "No se encontró el concepto.", back_to_map: "Volver al mapa",
+    rt_video: "video", rt_docs: "documentación", rt_reading: "lectura", in_english: "(en inglés)", on_path: "#{n} en tu ruta", viz_error: "Error en la visualización: ",
+    quiz_meta: "{n} preguntas · corrección inmediata", quiz_best: " · tu mejor puntaje: {b}/{n}", q_correct: "✔ Correcto.", q_wrong: "✘ No exactamente.", q_score: "Puntaje: {s}/{n}", q_great: "— ¡muy bien!", q_mark_done: "Marcar el concepto como hecho", q_review: "— repasá la explicación y los recursos, y volvé a intentarlo.", q_retry: "Repetir el quiz",
+    mm_fallback: "(No se pudo cargar la biblioteca de diagramas: se muestra el código fuente del diagrama.)",
+    doc_title: "AI Learning Hub — aprendé IA desde cero", footer: "Las explicaciones están simplificadas a propósito. Los links se revisaron el 21/10/2026. El progreso vive solo en tu navegador (localStorage). Los diagramas usan Mermaid desde el CDN de jsDelivr; todo lo demás es local.", theme_toggle: "Claro / oscuro", loading: "Cargando…"
   }
 };
 /* Onboarding questions (also used in Settings). value → label per language. */
 window.ONBOARDING = [
-  { id: "prog", q: { en: "How much programming have you done?", es: "¿Cuánto has programado?" }, opts: [
-    ["none", { en: "Never programmed", es: "Nunca programé" }], ["little", { en: "A little (a course, tutorials, small scripts)", es: "Un poco (un curso, tutoriales, scripts pequeños)" }],
+  { id: "prog", q: { en: "How much programming have you done?", es: "¿Cuánto programaste?" }, opts: [
+    ["none", { en: "Never programmed", es: "Nunca programé" }], ["little", { en: "A little (a course, tutorials, small scripts)", es: "Un poco (un curso, tutoriales, scripts chicos)" }],
     ["comfortable", { en: "Comfortable — I write programs regularly", es: "Con soltura: programo seguido" }], ["pro", { en: "Professional developer", es: "Desarrollador profesional" }]] },
-  { id: "lang", q: { en: "Which programming language do you know best (or want to use)?", es: "¿Qué lenguaje conoces mejor (o quieres usar)?" }, opts: [
+  { id: "lang", q: { en: "Which programming language do you know best (or want to use)?", es: "¿Qué lenguaje conocés mejor (o querés usar)?" }, opts: [
     ["python", { en: "Python", es: "Python" }], ["ts", { en: "JavaScript / TypeScript", es: "JavaScript / TypeScript" }], ["csharp", { en: "C#", es: "C#" }],
     ["other", { en: "Another language (examples in pseudocode)", es: "Otro lenguaje (ejemplos en pseudocódigo)" }], ["none", { en: "None yet (examples in pseudocode)", es: "Ninguno todavía (ejemplos en pseudocódigo)" }]] },
   { id: "web", q: { en: "How comfortable are you with HTTP and APIs?", es: "¿Qué tan cómodo estás con HTTP y APIs?" }, opts: [
     ["none", { en: "I don't know what an API is", es: "No sé qué es una API" }], ["idea", { en: "I know the idea but haven't used one", es: "Conozco la idea pero nunca usé una" }],
     ["built", { en: "I've called or built APIs (requests, JSON, status codes)", es: "Llamé o construí APIs (requests, JSON, códigos de estado)" }]] },
   { id: "db", q: { en: "And databases?", es: "¿Y bases de datos?" }, opts: [
-    ["none", { en: "Never used one", es: "Nunca usé una" }], ["sheets", { en: "Spreadsheets only", es: "Solo hojas de cálculo" }], ["sql", { en: "I can write SQL queries", es: "Sé escribir consultas SQL" }]] },
-  { id: "math", q: { en: "School math: graphs, percentages, exponents and logarithms?", es: "Matemática escolar: gráficos, porcentajes, exponentes y logaritmos?" }, opts: [
+    ["none", { en: "Never used one", es: "Nunca usé una" }], ["sheets", { en: "Spreadsheets only", es: "Solo planillas de cálculo" }], ["sql", { en: "I can write SQL queries", es: "Sé escribir consultas SQL" }]] },
+  { id: "math", q: { en: "School math: graphs, percentages, exponents and logarithms?", es: "¿Matemática escolar: gráficos, porcentajes, exponentes y logaritmos?" }, opts: [
     ["rusty", { en: "Rusty, or I avoid it", es: "Oxidada, o la evito" }], ["ok", { en: "OK with formulas and graphs; logs are fuzzy", es: "Bien con fórmulas y gráficos; los logaritmos no tanto" }],
     ["strong", { en: "Comfortable, including exponents and logs", es: "Cómodo, incluidos exponentes y logaritmos" }]] },
-  { id: "ai", q: { en: "How much do you already use AI tools?", es: "¿Cuánto usas ya herramientas de IA?" }, opts: [
+  { id: "ai", q: { en: "How much do you already use AI tools?", es: "¿Cuánto usás ya herramientas de IA?" }, opts: [
     ["never", { en: "Never or almost never", es: "Nunca o casi nunca" }], ["sometimes", { en: "Sometimes (ChatGPT, Claude, Gemini…)", es: "A veces (ChatGPT, Claude, Gemini…)" }],
     ["daily", { en: "Daily, for real work", es: "Todos los días, para trabajar" }], ["build", { en: "I build with AI APIs or agents", es: "Construyo con APIs de IA o agentes" }]] },
-  { id: "goal", q: { en: "What do you want first?", es: "¿Qué quieres primero?" }, opts: [
-    ["auto", { en: "Suggest for me", es: "Sugiéreme" }], ["basics", { en: "Start from the basics", es: "Empezar por lo básico" }],
+  { id: "goal", q: { en: "What do you want first?", es: "¿Qué querés primero?" }, opts: [
+    ["auto", { en: "Suggest for me", es: "Sugerime vos" }], ["basics", { en: "Start from the basics", es: "Empezar por lo básico" }],
     ["build", { en: "Build AI apps and agents", es: "Construir apps y agentes de IA" }], ["theory", { en: "Understand how models work inside", es: "Entender cómo funcionan los modelos por dentro" }]] }
 ];

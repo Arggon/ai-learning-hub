@@ -1,7 +1,7 @@
 /* Interactive visualizations (part 4): beginner foundations. No external deps. */
 (function () {
   const VIZ = window.VIZ;
-  const { el, slider, button, canvas, lin, out, controls, css } = window.VU;
+  const { el, slider, button, canvas, lin, out, controls, css, isEs } = window.VU;
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
   /* ---- What programming is: step through a tiny program ---- */
@@ -253,21 +253,22 @@
   /* ---- Using a chatbot well: prompt doctor ---- */
   VIZ.promptdoctor = (root) => {
     root.append(el("p", { class: "muted" }, "Type a request you might send to a chatbot. The checklist looks for the ingredients that usually make answers better. (It is a simple keyword check, not an AI.)"));
-    const weak = "write an email to my landlord";
+    const weak = isEs() ? "escribí un mail a mi propietario" : "write an email to my landlord";
     const strong = "Write a short, polite email to my landlord asking him to repair the heating this week.\nContext: the heating stopped working on Monday; I reported it by phone on Tuesday and nobody came.\nAudience: my landlord, who prefers formal language.\nFormat: under 120 words, with a clear subject line.\nExample of the tone I want: \"Dear Mr. Smith, I hope you are well.\"\nIf anything is unclear, ask me before writing.";
+    const strongEs = "Escribí un mail corto y amable a mi propietario pidiéndole que arregle la calefacción esta semana.\nContexto: la calefacción dejó de andar el lunes; lo avisé por teléfono el martes y no vino nadie.\nDestinatario: mi propietario, que prefiere un lenguaje formal.\nFormato: menos de 120 palabras, con un asunto claro.\nEjemplo del tono que quiero: \"Estimado Sr. Pérez, espero que se encuentre bien.\"\nSi algo no queda claro, preguntame antes de escribir.";
     const c = controls(root);
     const ta = el("textarea", { class: "viz-text", rows: 6, "aria-label": "your prompt" }); ta.value = weak; root.append(ta);
     const list = el("ul", { class: "checklist" }); root.append(list);
     const o = out(root);
     const CHECKS = [
-      ["Clear goal (an action verb)", /\b(write|explain|summari[sz]e|translate|compare|list|draft|review|fix|create|plan|suggest|analy[sz]e|rewrite|classify)\b/i, "Start with what you want done: \"Summarize…\", \"Draft…\", \"Compare…\"."],
-      ["Audience or purpose", /\b(for (a|an|my|the|non|beginners|kids|students|customers)|audience|reader|who will|so that|because|purpose|in order to)\b/i, "Say who it's for and why: \"for a non-technical manager\", \"so I can decide…\"."],
-      ["Context or material", /(context|background|here is|below|attached|:\n|\n.{40,}|"[^"]{30,}")/i, "Paste the relevant text, data or details instead of describing them."],
-      ["Output format or length", /\b(bullet|table|list|words|sentences|paragraph|format|json|email|subject line|steps|short|brief|max(imum)?|under \d+)\b/i, "Ask for a shape: \"5 bullet points\", \"a table\", \"under 100 words\"."],
-      ["An example of what good looks like", /\b(example|e\.g\.|for instance|like this|such as|tone)\b/i, "Show a sample of the style or output you want."],
-      ["Permission to ask or say \"I don't know\"", /\b(ask me|if (anything|something) is unclear|not sure|don'?t know|cite|sources?|uncertain)\b/i, "Add: \"If you're not sure, say so\" or \"Ask me questions first\"."],
+      ["Clear goal (an action verb)", /(\b(write|explain|summari[sz]e|translate|compare|list|draft|review|fix|create|plan|suggest|analy[sz]e|rewrite|classify)\b|(^|[\s¿¡])(escrib|explic|resum|traduc|compar|list|redact|revis|arregl|cre[áa]|plane|suger|analiz|reescrib|clasific)\p{L}*)/iu, "Start with what you want done: \"Summarize…\", \"Draft…\", \"Compare…\"."],
+      ["Audience or purpose", /(\b(for (a|an|my|the|non|beginners|kids|students|customers)|audience|reader|who will|so that|because|purpose|in order to)\b|(^|\s)(para (un|una|mi|el|la|alguien|principiantes|chicos|alumnos|clientes)|destinatario|p[úu]blico|lector|para que|porque|prop[óo]sito|objetivo)(?=\s|$|[.,:;]))/iu, "Say who it's for and why: \"for a non-technical manager\", \"so I can decide…\"."],
+      ["Context or material", /(context|background|here is|below|attached|contexto|antecedentes|ac[áa] est[áa]|abajo|adjunt|:\n|\n.{40,}|"[^"]{30,}")/iu, "Paste the relevant text, data or details instead of describing them."],
+      ["Output format or length", /(\b(bullet|table|list|words|sentences|paragraph|format|json|email|subject line|steps|short|brief|max(imum)?|under \d+)\b|(^|\s)(vi[ñn]etas?|tabla|lista|palabras|oraciones|p[áa]rrafo|formato|mail|correo|asunto|pasos|corto|breve|m[áa]ximo|menos de \d+)(?=\s|$|[.,:;]))/iu, "Ask for a shape: \"5 bullet points\", \"a table\", \"under 100 words\"."],
+      ["An example of what good looks like", /(\b(example|e\.g\.|for instance|like this|such as|tone)\b|(^|\s)(ejemplo|por ejemplo|como este|tono)(?=\s|$|[.,:;]))/iu, "Show a sample of the style or output you want."],
+      ["Permission to ask or say \"I don't know\"", /(\b(ask me|if (anything|something) is unclear|not sure|don'?t know|cite|sources?|uncertain)\b|(pregunt[áa]me|si algo no (queda|est[áa]) claro|no est[áa]s seguro|no s[ée]|cit[áa]|fuentes?|dudas?))/iu, "Add: \"If you're not sure, say so\" or \"Ask me questions first\"."],
     ];
-    const SECRET = /(sk-[A-Za-z0-9_-]{8,}|\bpassword\s*[:=]|\bapi[_ -]?key\s*[:=]|\b\d{4}[ -]?\d{4}[ -]?\d{4}[ -]?\d{4}\b)/i;
+    const SECRET = /(sk-[A-Za-z0-9_-]{8,}|\b(password|contrase[ñn]a|clave)\s*[:=]|\bapi[_ -]?key\s*[:=]|\b\d{4}[ -]?\d{4}[ -]?\d{4}[ -]?\d{4}\b)/i;
     const draw = () => {
       const t = ta.value; let score = 0;
       list.innerHTML = "";
@@ -281,7 +282,7 @@
     };
     ta.addEventListener("input", draw);
     button(c, "Load a weak prompt", () => { ta.value = weak; draw(); }, "ghost");
-    button(c, "Load a strong prompt", () => { ta.value = strong; draw(); }, "ghost");
+    button(c, "Load a strong prompt", () => { ta.value = isEs() ? strongEs : strong; draw(); }, "ghost");
     draw();
   };
 })();

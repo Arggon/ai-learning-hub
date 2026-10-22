@@ -1,7 +1,7 @@
 /* Interactive visualizations (part 2): RLHF, reasoning, apps, agents, ops. */
 (function () {
   const VIZ = window.VIZ;
-  const { el, slider, button, canvas, bars, lin, axes, out, controls, fmtNum, css, stepper } = window.VU;
+  const { el, slider, button, canvas, bars, lin, axes, out, controls, fmtNum, css, stepper, isEs } = window.VU;
 
   VIZ.prefs = (root) => {
     const prompt = "User: My EF Core query is slow. What should I check first?";
@@ -54,7 +54,7 @@
   };
 
   VIZ.promptbuilder = (root) => {
-    const parts = [
+    const partsEn = [
       ["role", "Role", "You are a friendly support assistant for Acme Store.", "Gives the model a perspective and vocabulary."],
       ["ctx", "Context", "<context>\nCustomers are small shop owners. Many are not technical.\n</context>", "Who the audience is and why the task exists."],
       ["task", "Clear task", "<task>\nSummarize the ticket below in 2 sentences and propose the next action.\n</task>", "Exactly what to do."],
@@ -63,8 +63,18 @@
       ["fmt", "Output format", "<format>\nReturn JSON: {\"summary\": string, \"next_action\": string, \"priority\": \"low\"|\"medium\"|\"high\"}\n</format>", "Makes the output parseable by your code."],
       ["exit", "Way out", "If the ticket is unclear, set next_action to \"ask customer for details\". Never invent features.", "Reduces made-up answers."]
     ];
+    const partsEs = [
+      ["role", "Rol", "Sos un asistente de soporte amable de Acme Store.", "Le da al modelo una perspectiva y un vocabulario."],
+      ["ctx", "Contexto", "<context>\nLos clientes son dueños de comercios chicos. Muchos no son técnicos.\n</context>", "Quién es el público y por qué existe la tarea."],
+      ["task", "Tarea clara", "<task>\nResumí el ticket de abajo en 2 oraciones y proponé la próxima acción.\n</task>", "Exactamente qué hacer."],
+      ["data", "Datos en etiquetas", "<ticket>\n{{ticket_text}}\n</ticket>", "Separa los datos no confiables de las instrucciones."],
+      ["ex", "Ejemplo (few-shot)", "<example>\n<ticket>No puedo imprimir facturas desde la actualización</ticket>\n<summary>La impresión se rompió después de la v2.3. Próximo paso: revisar la configuración del driver de la impresora.</summary>\n</example>", "Muestra el estilo y el largo que querés."],
+      ["fmt", "Formato de salida", "<format>\nDevolvé JSON: {\"summary\": string, \"next_action\": string, \"priority\": \"low\"|\"medium\"|\"high\"}\n</format>", "Hace que tu código pueda parsear la salida."],
+      ["exit", "Salida de escape", "Si el ticket no es claro, poné en next_action \"pedirle detalles al cliente\". Nunca inventes funcionalidades.", "Reduce las respuestas inventadas."]
+    ];
+    const parts = isEs() ? partsEs : partsEn;
     const on = new Set(["task"]); const c = controls(root); const pre = el("pre", { class: "code small" }); root.append(pre); const o = out(root);
-    const draw = () => { pre.textContent = parts.filter((p) => on.has(p[0])).map((p) => p[2]).join("\n\n") || "(empty prompt)"; const n = on.size; o.innerHTML = `Prompt checklist: <b>${n}/${parts.length}</b> — ` + parts.map((p) => `<span class="${on.has(p[0]) ? "good" : "muted"}" title="${p[3]}">${on.has(p[0]) ? "✔" : "○"} ${p[1]}</span>`).join(" · ") + (n < 4 ? `<br><span class="muted">A bare task gives generic answers. Turn on more parts and watch the spec become clear.</span>` : ""); };
+    const draw = () => { pre.textContent = parts.filter((p) => on.has(p[0])).map((p) => p[2]).join("\n\n") || (isEs() ? "(prompt vacío)" : "(empty prompt)"); const n = on.size; o.innerHTML = `Prompt checklist: <b>${n}/${parts.length}</b> — ` + parts.map((p) => `<span class="${on.has(p[0]) ? "good" : "muted"}" title="${p[3]}">${on.has(p[0]) ? "✔" : "○"} ${p[1]}</span>`).join(" · ") + (n < 4 ? `<br><span class="muted">A bare task gives generic answers. Turn on more parts and watch the spec become clear.</span>` : ""); };
     for (const p of parts) { const cb = el("input", { type: "checkbox" }); cb.checked = on.has(p[0]); cb.addEventListener("change", () => { cb.checked ? on.add(p[0]) : on.delete(p[0]); draw(); }); c.append(el("label", { class: "check", title: p[3] }, cb, " " + p[1])); }
     draw();
   };
@@ -92,7 +102,7 @@
   };
 
   VIZ.rag = (root) => {
-    const docs = [
+    const docsEn = [
       ["returns.md", "Customers can return products within 30 days with the receipt. Refunds go to the original payment method."],
       ["shipping.md", "Orders ship in 2 business days. Shipping to Patagonia takes up to 7 days."],
       ["invoices.md", "To export invoices go to Billing then Invoices then Export CSV. Tax invoices are generated automatically."],
@@ -100,13 +110,22 @@
       ["pos.md", "The point of sale works offline and syncs sales when the internet connection returns."],
       ["plans.md", "The Pro plan includes multiple stores and stock transfers between branches."]
     ];
-    const stop = new Set("the a an to and or of in is are with your you can how do i my what when then go for on it be does long take".split(" "));
-    const bag = (s) => { const m = {}; for (const w of s.toLowerCase().match(/[a-záéíóúñ]+/g) || []) if (!stop.has(w)) { const st = w.replace(/(ing|ed|es|s)$/, ""); m[st] = (m[st] || 0) + 1; } return m; };
+    const docsEs = [
+      ["devoluciones.md", "Los clientes pueden devolver productos dentro de los 30 días con el ticket. Los reembolsos vuelven al medio de pago original."],
+      ["envios.md", "Los pedidos se despachan en 2 días hábiles. Los envíos a la Patagonia tardan hasta 7 días."],
+      ["facturas.md", "Para exportar facturas andá a Facturación, después Facturas y después Exportar CSV. Las facturas fiscales se generan automáticamente."],
+      ["contrasenas.md", "Para resetear tu contraseña abrí Ajustes, después Seguridad y después Resetear contraseña. Te llega un link por mail que vence en 1 hora."],
+      ["pos.md", "El punto de venta funciona sin conexión y sincroniza las ventas cuando vuelve internet."],
+      ["planes.md", "El plan Pro incluye varias tiendas y transferencias de stock entre sucursales."]
+    ];
+    const docs = isEs() ? docsEs : docsEn;
+    const stop = new Set((isEs() ? "el la los las un una unos unas a al de del y o en es son con tu tus te mi mis que como cómo qué cuándo cuando se lo por para sin hay puedo después andá abrí" : "the a an to and or of in is are with your you can how do i my what when then go for on it be does long take").split(" "));
+    const bag = (s) => { const m = {}; for (const w of s.toLowerCase().match(/[a-záéíóúñ]+/g) || []) if (!stop.has(w)) { const st = isEs() ? w.replace(/(es|s)$/, "") : w.replace(/(ing|ed|es|s)$/, ""); m[st] = (m[st] || 0) + 1; } return m; };
     const cos = (a, b) => { let d = 0, na = 0, nb = 0; for (const k2 in a) { na += a[k2] ** 2; if (b[k2]) d += a[k2] * b[k2]; } for (const k2 in b) nb += b[k2] ** 2; return na && nb ? d / Math.sqrt(na * nb) : 0; };
     root.append(el("p", { class: "muted" }, "Toy RAG over 6 help-center chunks. The 'embedding' here is a simple bag-of-words vector so you can see the mechanics; real systems use an embedding model (which would also match 'forgot' with 'reset')."));
     const c = controls(root);
-    const qIn = el("input", { type: "text", class: "viz-input", value: "How do I export my invoices?", "aria-label": "question" }); c.append(qIn);
-    ["Shipping to Patagonia?", "Reset my password", "Does it work offline?"].forEach((s) => button(c, s, () => { qIn.value = s; draw(); }, "ghost small"));
+    const qIn = el("input", { type: "text", class: "viz-input", value: isEs() ? "¿Cómo exporto mis facturas?" : "How do I export my invoices?", "aria-label": "question" }); c.append(qIn);
+    (isEs() ? ["¿Envíos a la Patagonia?", "Resetear mi contraseña", "¿Funciona sin conexión?"] : ["Shipping to Patagonia?", "Reset my password", "Does it work offline?"]).forEach((s) => button(c, s, () => { qIn.value = s; draw(); }, "ghost small"));
     const K = slider(c, { label: "top-k chunks", min: 1, max: 6, value: 2 }, () => draw());
     root.append(el("h4", {}, "1–3. Embed the question → score every chunk → keep the top-k"));
     const res = el("div"); root.append(res);
@@ -115,7 +134,7 @@
     function draw() {
       const qv = bag(qIn.value); const scored = docs.map(([n, t]) => ({ n, t, s: cos(qv, bag(t)) })).sort((a, b) => b.s - a.s); const top = scored.slice(0, K.get());
       bars(res, scored.map((d) => ({ label: d.n, value: d.s, cls: top.includes(d) ? "hl" : "dim" })), { max: 1, fmt: (v) => v.toFixed(2) });
-      pre.textContent = `Answer using ONLY the documents. Cite like [1]. If the answer is not there, say "I don't know".\n<documents>\n${top.map((d, i) => `[${i + 1}] (${d.n}) ${d.t}`).join("\n")}\n</documents>\n<question>${qIn.value}</question>`;
+      pre.textContent = (isEs() ? `Respondé usando SOLO los documentos. Citá así: [1]. Si la respuesta no está ahí, decí "No sé".` : `Answer using ONLY the documents. Cite like [1]. If the answer is not there, say "I don't know".`) + `\n<documents>\n${top.map((d, i) => `[${i + 1}] (${d.n}) ${d.t}`).join("\n")}\n</documents>\n<question>${qIn.value}</question>`;
     }
     qIn.addEventListener("input", draw);
     draw();
