@@ -10,7 +10,8 @@ const ok = (c, m) => { console.log((c ? "✔ " : "✘ ") + m); if (!c) fails++; 
   const page = async (seed) => {
     const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, acceptDownloads: true }); const p = await ctx.newPage();
     const errs = []; p.on("pageerror", (e) => errs.push(String(e)));
-    await p.addInitScript((s) => { if (!sessionStorage.getItem("seeded")) { sessionStorage.setItem("seeded", "1"); localStorage.clear(); for (const [k, v] of Object.entries(s || {})) localStorage.setItem(k, v); } }, seed);
+    // Seed once per context. The marker lives in localStorage: sessionStorage is not reliably kept across reloads of file:// pages.
+    await p.addInitScript(([s, tag]) => { if (localStorage.getItem("__test_seed") !== tag) { localStorage.clear(); for (const [k, v] of Object.entries(s || {})) localStorage.setItem(k, v); localStorage.setItem("__test_seed", tag); } }, [seed, String(Math.random())]);
     await p.goto(URL); await p.waitForTimeout(400); return { ctx, p, errs };
   };
   const old = { version: 2, profile: { answers: { prog: "little", lang: "python", web: "idea", db: "none", math: "basic", ai: "some", goal: "use" }, at: "2026-10-01T00:00:00Z" }, skipped: false, manualKnown: { math_basics: true },
@@ -56,22 +57,39 @@ const ok = (c, m) => { console.log((c ? "✔ " : "✘ ") + m); if (!c) fails++; 
 
   // 3c. Export file name, and import of an old AI Learning Hub export (ai-hub-progress.json, no "app" field)
   ({ ctx, p, errs } = await page({ "arggonLearn.v1": JSON.stringify({ version: 2, skipped: true, done: { web_apis: true }, quiz: {}, settings: { uiLang: "en" } }) }));
-  await p.evaluate(() => (location.hash = "#/settings")); await p.waitForTimeout(400);
+  await p.evaluate(() => (location.hash = "#/settings")); await p.waitForSelector("#import-file", { state: "attached" }); await p.evaluate(() => document.querySelector("#data-msg").replaceChildren());
   const [dl] = await Promise.all([p.waitForEvent("download"), p.click("#export")]);
   const exported = JSON.parse(require("fs").readFileSync(await dl.path(), "utf8"));
   ok(dl.suggestedFilename() === "arggon-learn-progress.json" && exported.app === "arggon-learn" && exported.done.web_apis === true, `export file is ${dl.suggestedFilename()} with app marker`);
   await p.setInputFiles("#import-file", { name: "ai-hub-progress.json", mimeType: "application/json", buffer: Buffer.from(JSON.stringify({ ...old, exportedAt: "2026-10-10T00:00:00Z" })) });
-  await p.waitForTimeout(600);
+  await p.waitForSelector("#data-msg span", { timeout: 5000 });
   st = await p.evaluate(() => HUB.S);
   ok(st.done.chatbot_use && st.quiz.chatbot_use.best === 3 && !st.done.web_apis, "importing an old ai-hub-progress.json restores its progress");
-  await p.evaluate(() => (location.hash = "#/settings")); await p.waitForTimeout(400);
+  await p.evaluate(() => (location.hash = "#/settings")); await p.waitForSelector("#import-file", { state: "attached" }); await p.evaluate(() => document.querySelector("#data-msg").replaceChildren());
   await p.setInputFiles("#import-file", { name: "arggon-learn-progress.json", mimeType: "application/json", buffer: Buffer.from(JSON.stringify(exported)) });
-  await p.waitForTimeout(600);
+  await p.waitForSelector("#data-msg span", { timeout: 5000 });
   ok(await p.evaluate(() => HUB.S.done.web_apis === true && !HUB.S.done.chatbot_use), "importing arggon-learn-progress.json round-trips");
-  await p.evaluate(() => (location.hash = "#/settings")); await p.waitForTimeout(400);
+  await p.evaluate(() => (location.hash = "#/settings")); await p.waitForSelector("#import-file", { state: "attached" }); await p.evaluate(() => document.querySelector("#data-msg").replaceChildren());
   await p.setInputFiles("#import-file", { name: "v1.json", mimeType: "application/json", buffer: Buffer.from(JSON.stringify({ done: { prog_basics: true }, quiz: {} })) });
-  await p.waitForTimeout(600);
+  await p.waitForSelector("#data-msg span", { timeout: 5000 });
   ok(await p.evaluate(() => HUB.S.done.prog_basics === true), "importing the old v1 format still works");
+  {
+    const b0 = await p.evaluate(() => JSON.stringify(HUB.S)); await p.evaluate(() => (location.hash = "#/settings")); await p.waitForSelector("#import-file", { state: "attached" }); await p.evaluate(() => document.querySelector("#data-msg").replaceChildren());
+    await p.setInputFiles("#import-file", { name: "other.json", mimeType: "application/json", buffer: Buffer.from(JSON.stringify({ app: "other", version: 2, done: { chatbot_use: true }, quiz: {} })) });
+    await p.waitForSelector("#data-msg span", { timeout: 5000 });
+    const r = await p.evaluate(() => ({ S: JSON.stringify(HUB.S), msg: document.querySelector("#data-msg").textContent }));
+    ok(r.S === b0 && r.msg.includes("exported by another app: other"), 'app:"other" import is rejected with an error and progress is unchanged');
+  }
+  // A file exported by another app is rejected: progress unchanged, error shown as plain text (the app value is untrusted).
+  const before = await p.evaluate(() => ({ S: JSON.stringify(HUB.S), stored: localStorage.getItem("arggonLearn.v1") }));
+  await p.evaluate(() => { window.__xss = false; location.hash = "#/settings"; }); await p.waitForSelector("#import-file", { state: "attached" }); await p.evaluate(() => document.querySelector("#data-msg").replaceChildren());
+  const evil = '<img src=x onerror="window.__xss=true">';
+  await p.setInputFiles("#import-file", { name: "other.json", mimeType: "application/json", buffer: Buffer.from(JSON.stringify({ app: evil, version: 2, done: { chatbot_use: true }, quiz: {} })) });
+  await p.waitForSelector("#data-msg span", { timeout: 5000 });
+  const after = await p.evaluate(() => ({ S: JSON.stringify(HUB.S), stored: localStorage.getItem("arggonLearn.v1"), msg: document.querySelector("#data-msg").textContent, cls: (document.querySelector("#data-msg span") || {}).className, img: !!document.querySelector("#data-msg img"), xss: window.__xss }));
+  ok(after.S === before.S && after.stored === before.stored, "app:\"other\" import leaves progress and storage unchanged");
+  ok(after.cls === "bad" && after.msg.includes("exported by another app: " + evil), "app:\"other\" import shows the error message (" + after.msg.slice(0, 80) + ")");
+  ok(!after.img && after.xss === false, "the untrusted app value is shown as text, not HTML");
   ok(errs.length === 0, "no page errors (" + errs.join("; ") + ")"); await ctx.close();
 
   // 3d. Header count matches the home card count (known concepts excluded in both)

@@ -320,6 +320,8 @@
     if (obj.done || obj.quiz) return migrateV1(obj);
     throw new Error("no progress fields (done / quiz) found");
   }
+  // #data-msg can contain text from the imported file (e.g. its "app" value), so it is written as text, never as HTML.
+  const setMsg = (el, cls, text) => { const sp = document.createElement("span"); sp.className = cls; sp.textContent = text; el.replaceChildren(sp); };
   function wireDataTools(root) {
     const msg = $("#data-msg", root);
     $("#export", root).onclick = () => {
@@ -329,8 +331,8 @@
     };
     $("#import-file", root).onchange = async (e) => {
       const f = e.target.files[0]; if (!f) return;
-      try { S = importState(JSON.parse(await f.text())); save(); mmReady = false; route().then(() => { const m = $("#data-msg"); if (m) m.innerHTML = `<span class="good">${t("import_ok")}</span>`; }); }
-      catch (err) { msg.innerHTML = `<span class="bad">${esc(t("import_bad", { err: err.message }))}</span>`; }
+      try { S = importState(JSON.parse(await f.text())); save(); mmReady = false; route().then(() => { const m = $("#data-msg"); if (m) setMsg(m, "good", t("import_ok")); }); }
+      catch (err) { setMsg(msg, "bad", t("import_bad", { err: err.message })); }
     };
     $("#reset", root).onclick = () => { if (confirm(t("confirm_reset"))) { S.done = {}; S.quiz = {}; save(); route(); } };
     $("#reset-all", root).onclick = () => { if (confirm(t("confirm_reset_all"))) { S = fresh(); save(); mmReady = false; location.hash = "#/welcome"; route(); } };
