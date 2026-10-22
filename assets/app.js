@@ -311,14 +311,24 @@
       <p class="tools"><button class="btn ghost" id="export" type="button">${t("export")}</button> <label class="btn ghost" for="import-file">${t("import")}</label><input type="file" id="import-file" accept="application/json,.json" hidden>
       <button class="btn ghost danger" id="reset" type="button">${t("reset_progress")}</button> <button class="btn ghost danger" id="reset-all" type="button">${t("reset_all")}</button></p><p id="data-msg" class="small" aria-live="polite"></p></div>`;
   }
+  // Import validation. Rejections throw an ImportError whose key is a localized message; the current state is
+  // only replaced after a file passes every check.
+  class ImportError extends Error { constructor(key, vars = {}) { super(key); this.key = key; this.vars = vars; } }
+  const plain = (o) => !!o && typeof o === "object" && !Array.isArray(o);
+  const knownIds = (o) => (plain(o) ? Object.keys(o).filter((id) => BY[id]) : []);
+  const validProfile = (p) => plain(p) && plain(p.answers) && Object.keys(p.answers).length > 0;
   function importState(obj) {
-    if (!obj || typeof obj !== "object") throw new Error("not a JSON object");
+    if (!plain(obj)) throw new ImportError("imp_err_obj");
     // Accepts arggon-learn-progress.json and files exported by AI Learning Hub (ai-hub-progress.json, same v2 shape, no "app" field)
     // and its v1 format. The file name doesn't matter; only the content is checked.
-    if (obj.app !== undefined && obj.app !== "arggon-learn") throw new Error("exported by another app: " + obj.app);
+    if (obj.app !== undefined && obj.app !== "arggon-learn") throw new ImportError("imp_err_app", { app: String(obj.app) });
+    for (const f of ["done", "quiz", "manualKnown", "settings", "view"]) if (obj[f] !== undefined && !plain(obj[f])) throw new ImportError("imp_err_shape", { field: f });
+    if (obj.profile != null && !validProfile(obj.profile)) throw new ImportError("imp_err_shape", { field: "profile" });
+    if (obj.version !== undefined && obj.version !== 2) throw new ImportError("imp_err_version", { v: String(obj.version) });
+    const hasData = knownIds(obj.done).length || knownIds(obj.quiz).length || knownIds(obj.manualKnown).length || validProfile(obj.profile);
+    if (!hasData) throw new ImportError("imp_err_empty");
     if (obj.version === 2) return sanitize(obj);
-    if (obj.done || obj.quiz) return migrateV1(obj);
-    throw new Error("no progress fields (done / quiz) found");
+    return migrateV1(obj); // v1: no version field, done / quiz are plain objects
   }
   // #data-msg can contain text from the imported file (e.g. its "app" value), so it is written as text, never as HTML.
   const setMsg = (el, cls, text) => { const sp = document.createElement("span"); sp.className = cls; sp.textContent = text; el.replaceChildren(sp); };
@@ -331,8 +341,9 @@
     };
     $("#import-file", root).onchange = async (e) => {
       const f = e.target.files[0]; if (!f) return;
-      try { S = importState(JSON.parse(await f.text())); save(); mmReady = false; route().then(() => { const m = $("#data-msg"); if (m) setMsg(m, "good", t("import_ok")); }); }
-      catch (err) { setMsg(msg, "bad", t("import_bad", { err: err.message })); }
+      let parsed; try { parsed = JSON.parse(await f.text()); } catch { setMsg(msg, "bad", t("import_bad", { err: t("imp_err_json") })); return; }
+      try { S = importState(parsed); save(); mmReady = false; route().then(() => { const m = $("#data-msg"); if (m) setMsg(m, "good", t("import_ok")); }); }
+      catch (err) { setMsg(msg, "bad", t("import_bad", { err: err instanceof ImportError ? t(err.key, err.vars) : t("imp_err_obj") })); }
     };
     $("#reset", root).onclick = () => { if (confirm(t("confirm_reset"))) { S.done = {}; S.quiz = {}; save(); route(); } };
     $("#reset-all", root).onclick = () => { if (confirm(t("confirm_reset_all"))) { S = fresh(); save(); mmReady = false; location.hash = "#/welcome"; route(); } };

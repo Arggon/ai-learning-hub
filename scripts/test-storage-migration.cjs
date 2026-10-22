@@ -29,7 +29,10 @@ const ok = (c, m) => { console.log((c ? "✔ " : "✘ ") + m); if (!c) fails++; 
   ok(st.lang === "es" && st.theme === "dark", "copied settings applied on first load");
   // 2. It runs only once: new progress is not overwritten by the old key on reload
   await p.evaluate(() => { const s = JSON.parse(localStorage.getItem("arggonLearn.v1")); s.done.vars_functions = true; localStorage.setItem("arggonLearn.v1", JSON.stringify(s)); });
-  await p.reload(); await p.waitForTimeout(400);
+  // "Next load": close the tab and open a new one in the same browser context (same localStorage, no seeding script).
+  // A plain reload re-ran the seeding init script under some timings, which made this check flaky.
+  await p.close(); p = await ctx.newPage(); p.on("pageerror", (e) => errs.push(String(e)));
+  await p.goto(URL); await p.waitForFunction(() => window.HUB && window.HUB.S); await p.waitForTimeout(300);
   st = await p.evaluate(() => ({ S: HUB.S, cur: JSON.parse(localStorage.getItem("arggonLearn.v1")) }));
   ok(st.S.done.vars_functions === true && st.cur.done.vars_functions === true, "after reload, new progress kept (no second copy)");
   ok(st.S.copiedFrom && st.S.copiedFrom.key === "aiHub.v2" && typeof st.S.copiedFrom.at === "string", "copiedFrom survives sanitize on the next load");
@@ -84,12 +87,49 @@ const ok = (c, m) => { console.log((c ? "✔ " : "✘ ") + m); if (!c) fails++; 
   const before = await p.evaluate(() => ({ S: JSON.stringify(HUB.S), stored: localStorage.getItem("arggonLearn.v1") }));
   await p.evaluate(() => { window.__xss = false; location.hash = "#/settings"; }); await p.waitForSelector("#import-file", { state: "attached" }); await p.evaluate(() => document.querySelector("#data-msg").replaceChildren());
   const evil = '<img src=x onerror="window.__xss=true">';
-  await p.setInputFiles("#import-file", { name: "other.json", mimeType: "application/json", buffer: Buffer.from(JSON.stringify({ app: evil, version: 2, done: { chatbot_use: true }, quiz: {} })) });
+  await p.setInputFiles("#import-file", { name: "other.json", mimeType: "application/json", buffer: Buffer.from(JSON.stringify({ app: evil, version: 2, done: { web_apis: true, db_basics: true }, quiz: { web_apis: { best: 1, last: 1 } }, settings: { uiLang: "es", theme: "dark" } })) });
   await p.waitForSelector("#data-msg span", { timeout: 5000 });
   const after = await p.evaluate(() => ({ S: JSON.stringify(HUB.S), stored: localStorage.getItem("arggonLearn.v1"), msg: document.querySelector("#data-msg").textContent, cls: (document.querySelector("#data-msg span") || {}).className, img: !!document.querySelector("#data-msg img"), xss: window.__xss }));
-  ok(after.S === before.S && after.stored === before.stored, "app:\"other\" import leaves progress and storage unchanged");
+  {
+    // The file's data differs from the current state on every field, so any partial apply would show up here.
+    const B = JSON.parse(before.S), A = JSON.parse(after.S);
+    ok(after.S === before.S && after.stored === before.stored && !A.done.web_apis && !A.done.db_basics && !A.quiz.web_apis && A.settings.uiLang === B.settings.uiLang && A.settings.theme === B.settings.theme && B.done.prog_basics === true && A.done.prog_basics === true,
+      "HTML-app import leaves progress, settings and storage unchanged (file data differs, so a mutation would be caught)");
+  }
   ok(after.cls === "bad" && after.msg.includes("exported by another app: " + evil), "app:\"other\" import shows the error message (" + after.msg.slice(0, 80) + ")");
   ok(!after.img && after.xss === false, "the untrusted app value is shown as text, not HTML");
+  // Junk files are rejected with a localized message and never touch the current state.
+  const junk = [
+    ['{"done":"x"}', "{\"done\":\"x\"}", 'the "done" field has the wrong format'],
+    ['{"quiz":1}', "{\"quiz\":1}", 'the "quiz" field has the wrong format'],
+    ['{"done":[1]}', "{\"done\":[1]}", 'the "done" field has the wrong format'],
+    ["version 3", JSON.stringify({ version: 3, done: { web_apis: true }, settings: { uiLang: "es" } }), "unsupported version 3"],
+    ['version "2"', JSON.stringify({ version: "2", done: { web_apis: true } }), "unsupported version 2"],
+    ["v2 with settings as a string", JSON.stringify({ version: 2, done: { web_apis: true }, settings: "es" }), 'the "settings" field has the wrong format'],
+    ["profile without answers", JSON.stringify({ version: 2, profile: { at: "x" } }), 'the "profile" field has the wrong format'],
+    ["no known concept ids", JSON.stringify({ done: { nope: true }, quiz: {} }), "it has no known concepts or profile"],
+    ["empty v2", JSON.stringify({ version: 2 }), "it has no known concepts or profile"],
+    ["empty object", "{}", "it has no known concepts or profile"],
+    ["array", "[1,2]", "the file is not a progress object"],
+    ["null", "null", "the file is not a progress object"],
+    ["string", '"hello"', "the file is not a progress object"],
+    ["malformed JSON", "{not json", "the file is not valid JSON"],
+  ];
+  for (const [name, text, want] of junk) {
+    await p.evaluate(() => (location.hash = "#/settings")); await p.waitForSelector("#import-file", { state: "attached" }); await p.evaluate(() => document.querySelector("#data-msg").replaceChildren());
+    const b0 = await p.evaluate(() => ({ S: JSON.stringify(HUB.S), stored: localStorage.getItem("arggonLearn.v1"), lang: document.documentElement.lang }));
+    await p.setInputFiles("#import-file", { name: "junk.json", mimeType: "application/json", buffer: Buffer.from(text) });
+    await p.waitForSelector("#data-msg span", { timeout: 5000 });
+    const r = await p.evaluate(() => ({ S: JSON.stringify(HUB.S), stored: localStorage.getItem("arggonLearn.v1"), lang: document.documentElement.lang, msg: document.querySelector("#data-msg").textContent, cls: document.querySelector("#data-msg span").className }));
+    ok(r.S === b0.S && r.stored === b0.stored && r.lang === b0.lang && r.cls === "bad" && r.msg.includes(want) && !/Imported/i.test(r.msg), `junk import rejected, state unchanged: ${name} → "${r.msg}"`);
+  }
+  // Spanish UI: the malformed-JSON message is localized (not the browser's English parser text)
+  await p.click("#lang-toggle"); await p.evaluate(() => (location.hash = "#/settings")); await p.waitForSelector("#import-file", { state: "attached" }); await p.evaluate(() => document.querySelector("#data-msg").replaceChildren());
+  await p.setInputFiles("#import-file", { name: "junk.json", mimeType: "application/json", buffer: Buffer.from("{not json") });
+  await p.waitForSelector("#data-msg span", { timeout: 5000 });
+  const esMsg = await p.evaluate(() => document.querySelector("#data-msg").textContent);
+  ok(esMsg.includes("el archivo no es JSON válido") && !/Unexpected|JSON\.parse|position/i.test(esMsg), `ES malformed-JSON message is localized: "${esMsg}"`);
+  await p.click("#lang-toggle");
   ok(errs.length === 0, "no page errors (" + errs.join("; ") + ")"); await ctx.close();
 
   // 3d. Header count matches the home card count (known concepts excluded in both)
