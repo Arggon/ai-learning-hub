@@ -108,7 +108,7 @@ cost: {
 <p>Los tokens son como el reloj de un taxi: cada palabra que entra y sale cuesta plata, y las conversaciones largas mantienen el reloj corriendo porque se reenvía todo el historial cada vez. Medí, presupuestá y cacheá como harías con cualquier servicio medido.</p>
 <div class="lang-note" data-lang="csharp"><b>Si sabés C#/.NET:</b> como el egress de la nube y las DTU de la base de datos: invisibles en desarrollo, enormes en producción. Tratá los tokens como un recurso medido, con dashboards y presupuestos: un middleware de <code>IChatClient</code> es el lugar perfecto para registrar el uso con OpenTelemetry.</div>
 <p class="warn">Los precios cambian seguido. Los precios por defecto de la calculadora son solo ejemplos: revisá la página de precios del proveedor.</p>`,
-  res: ["Precios por token de cada modelo, caché y descuentos por lotes.", "Cómo funcionan los prefijos de caché y cuánto cuestan.", "Tokens, límites y costo para desarrolladores .NET."],
+  res: ["Precios por token de cada modelo, caché y descuentos por lotes.", "Cómo funcionan los prefijos de caché y cuánto cuestan.", "Tokens, límites y costo para quienes programan en .NET."],
   quiz: [
     ["¿Qué tokens suelen ser más caros por token?", ["Los de entrada", "Los de salida", "Siempre cuestan lo mismo", "Los cacheados"], "La salida se genera de a uno."],
     ["Para aprovechar la caché de prompts tenés que poner…", ["El contenido variable primero", "El contenido estable (prompt de sistema, herramientas, documentos) primero y el variable al final", "Todo en un orden al azar", "Nada; es automático en todos los casos"], "La caché funciona sobre prefijos idénticos."],

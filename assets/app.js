@@ -71,6 +71,8 @@
 
   /* ---------- i18n ---------- */
   const t = (k, vars = {}) => { const L = window.I18N[S.settings.uiLang] || window.I18N.en; let s = L[k] ?? window.I18N.en[k] ?? k; for (const [a, b] of Object.entries(vars)) s = s.split("{" + a + "}").join(b); return s; };
+  // Count phrases: "<key>_one" for exactly 1, "<key>_other" otherwise (same rule in EN and ES).
+  const tn = (k, n) => t(k + (n === 1 ? "_one" : "_other"), { n });
   const tl = (obj) => (obj && (obj[S.settings.uiLang] || obj.en)) || "";
   const isEs = () => S.settings.uiLang === "es";
   /* Localized content: concept fields read the Spanish overlay (window.ES) when the UI is in Spanish. */
@@ -347,7 +349,9 @@
       // A valid file replaces the current progress: ask first. Cancelling leaves everything as it was.
       const cur = { done: Object.keys(S.done).length, quiz: Object.keys(S.quiz).length };
       const inc = { done: Object.keys(next.done).length, quiz: Object.keys(next.quiz).length };
-      if (!confirm(t("confirm_import", { cd: cur.done, cq: cur.quiz, nd: inc.done, nq: inc.quiz }))) { setMsg(msg, "muted", t("import_cancelled")); e.target.value = ""; return; }
+      const counts = (c) => `${tn("n_done", c.done)}, ${tn("n_quiz", c.quiz)}`;
+      if (!confirm(t("confirm_import", { cur: counts(cur), inc: counts(inc) }))) { setMsg(msg, "muted", t("import_cancelled")); e.target.value = ""; return; }
+      e.target.value = ""; // reset so choosing the same file again fires change
       try { S = next; save(); mmReady = false; route().then(() => { const m = $("#data-msg"); if (m) setMsg(m, "good", t("import_ok")); }); }
       catch (err) { setMsg(msg, "bad", t("import_bad", { err: err instanceof ImportError ? t(err.key, err.vars) : t("imp_err_obj") })); }
     };

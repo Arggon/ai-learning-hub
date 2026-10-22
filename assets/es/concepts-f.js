@@ -19,7 +19,7 @@ tokenization: {
 <p>Es como partir el texto en ladrillos de LEGO: las palabras comunes son un solo ladrillo grande y las raras se arman con varios chiquitos. El juego de ladrillos (el vocabulario) se aprende a partir de muchísimo texto.</p>
 <div class="lang-note" data-lang="csharp"><b>Si sabés C#/.NET:</b> es como el lexer de un compilador (Roslyn convierte el código fuente en tokens antes de parsearlo), pero el vocabulario se aprende de los datos en lugar de definirse con una gramática.</div>
 <p class="tip">Probá tokenizadores reales en <a href="https://tiktokenizer.vercel.app/" target="_blank" rel="noopener">Tiktokenizer</a>. Pegá un fragmento de código y un párrafo en otro idioma (no en inglés) y compará las cantidades.</p>`,
-  res: ["2 h, en Python. Mirá los primeros 30 minutos para tener el panorama.", "Ejemplo de BPE paso a paso.", "Los tokens explicados para desarrolladores .NET."],
+  res: ["2 h, en Python. Mirá los primeros 30 minutos para tener el panorama.", "Ejemplo de BPE paso a paso.", "Los tokens explicados para quienes programan en .NET."],
   quiz: [
     ["¿Qué recibe realmente el modelo como entrada?", ["Caracteres crudos", "IDs enteros de tokens", "Oraciones enteras", "Audio"], "Texto → tokens → IDs → vectores de embedding."],
     ["¿Más o menos cuántos tokens son 400 caracteres de inglés?", ["≈ 10", "≈ 100", "≈ 400", "≈ 1600"], "≈ 4 caracteres por token."],
