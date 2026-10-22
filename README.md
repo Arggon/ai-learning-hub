@@ -30,3 +30,7 @@ Spanish (Argentina, voseo) lives in `assets/es/`. English is the source of truth
 
 - `node scripts/check-i18n.mjs` — static check (also runs in CI): every English UI string, track copy, concept field, quiz item, resource note, glossary term, diagram and code comment must have a Spanish value that is not a copy of the English prose.
 - `node scripts/check-i18n-browser.cjs` — optional headless scan of the live page in Spanish mode (needs `playwright-core` and Chrome; set `PW_CORE` and `CHROME`).
+
+## Tests
+
+`npm ci && npx playwright install chromium`, then `npm run test:migration` (storage migration and home page) and `npm run check:i18n:browser`. CI runs both on every pull request.

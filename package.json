@@ -1,0 +1,13 @@
+{
+  "name": "arggon-learn",
+  "private": true,
+  "description": "Arggon Learn static site. No build step; these scripts are for checks only.",
+  "scripts": {
+    "check:i18n": "node scripts/check-i18n.mjs",
+    "check:i18n:browser": "node scripts/check-i18n-browser.cjs",
+    "test:migration": "node scripts/test-storage-migration.cjs"
+  },
+  "devDependencies": {
+    "playwright": "1.64.1"
+  }
+}

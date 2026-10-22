@@ -1,6 +1,6 @@
 /* Browser test for the one-time storage migration aiHub.v2 → arggonLearn.v1, plus the home / track picker.
    Run: PW_CORE=<path to playwright-core> CHROME=<chrome binary> node scripts/test-storage-migration.cjs */
-const { chromium } = require(process.env.PW_CORE || "playwright-core");
+const { chromium } = require(process.env.PW_CORE || "playwright");
 const path = require("path");
 const URL = "file://" + path.resolve(__dirname, "..", "index.html");
 let fails = 0;
@@ -31,6 +31,10 @@ const ok = (c, m) => { console.log((c ? "✔ " : "✘ ") + m); if (!c) fails++; 
   await p.reload(); await p.waitForTimeout(400);
   st = await p.evaluate(() => ({ S: HUB.S, cur: JSON.parse(localStorage.getItem("arggonLearn.v1")) }));
   ok(st.S.done.vars_functions === true && st.cur.done.vars_functions === true, "after reload, new progress kept (no second copy)");
+  ok(st.S.copiedFrom && st.S.copiedFrom.key === "aiHub.v2" && typeof st.S.copiedFrom.at === "string", "copiedFrom survives sanitize on the next load");
+  await p.evaluate(() => { document.querySelector("#theme-toggle").click(); }); await p.waitForTimeout(300);
+  st = await p.evaluate(() => JSON.parse(localStorage.getItem("arggonLearn.v1")));
+  ok(st.copiedFrom && st.copiedFrom.key === "aiHub.v2" && Object.keys(st.copiedFrom).sort().join() === "at,key", "copiedFrom is written back on save, with only key and at");
   ok(errs.length === 0, "no page errors (" + errs.join("; ") + ")"); await ctx.close();
 
   // 3. arggonLearn.v1 wins when both keys exist

@@ -3,7 +3,7 @@
    English examples (KEEP) are exempt on purpose.
    Usage: node scripts/check-i18n-browser.cjs   (needs playwright-core and a Chromium; set CHROME=/path/to/chrome or PW_CORE=/path/to/playwright-core) */
 const path = require("path");
-const { chromium } = require(process.env.PW_CORE || "playwright-core");
+const { chromium } = require(process.env.PW_CORE || "playwright");
 const url = "file://" + path.resolve(__dirname, "../index.html");
 const EN_WORDS = /\b(the|and|with|your|you|this|that|from|which|what|when|click|press|step|next|reset|sample|tokens? per|is|are|of)\b/gi;
 (async () => {

@@ -32,7 +32,8 @@
     if (["auto", "beginner", "builder", "theory"].includes(st.track)) s.settings.track = st.track;
     if (raw.view && typeof raw.view === "object") s.view = { subgraphs: !!raw.view.subgraphs, zoom: Number.isFinite(raw.view.zoom) ? raw.view.zoom : undefined };
     if (raw.migratedFrom) s.migratedFrom = raw.migratedFrom;
-    if (raw.copiedFrom) s.copiedFrom = raw.copiedFrom;
+    // Kept on purpose: records the one-time copy from aiHub.v2 (only the known fields survive).
+    const cf = raw.copiedFrom; if (cf && typeof cf === "object" && typeof cf.key === "string") s.copiedFrom = { key: cf.key, at: typeof cf.at === "string" ? cf.at : null };
     if (typeof raw.trackId === "string") s.trackId = raw.trackId;
     return s;
   }
