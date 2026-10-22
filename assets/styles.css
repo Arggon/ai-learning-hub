@@ -215,3 +215,10 @@ pre.sql{background:var(--codebg);color:var(--codefg);border-radius:8px;padding:8
   .http-grid>*,.json-grid>*,.prog-grid>*{min-width:0}
   .http-box,main p,main li,main dd{overflow-wrap:anywhere}
 }
+/* Home: track picker */
+.track-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;margin:16px 0}
+.track-card{display:flex;gap:16px;align-items:flex-start;text-decoration:none;color:var(--text);border-left:6px solid}
+.track-card:hover{outline:2px solid var(--border)}
+.track-card h2{margin:0 0 4px}
+.track-icon{font-size:40px;line-height:1}
+@media (max-width:600px){.track-grid{grid-template-columns:1fr}.track-card{flex-direction:column;gap:8px}}

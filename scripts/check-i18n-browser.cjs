@@ -9,7 +9,7 @@ const EN_WORDS = /\b(the|and|with|your|you|this|that|from|which|what|when|click|
 (async () => {
   const browser = await chromium.launch({ executablePath: process.env.CHROME || undefined, args: ["--no-sandbox"] });
   const ctx = await browser.newContext({ viewport: { width: 1300, height: 900 } });
-  await ctx.addInitScript(() => { localStorage.setItem("aiHub.v2", JSON.stringify({ version: 2, skipped: true, settings: { uiLang: "es", codeLang: "python", theme: "light", track: "auto" } })); });
+  await ctx.addInitScript(() => { localStorage.setItem("arggonLearn.v1", JSON.stringify({ version: 2, skipped: true, settings: { uiLang: "es", codeLang: "python", theme: "light", track: "auto" } })); });
   const page = await ctx.newPage(); const errors = [];
   page.on("pageerror", (e) => errors.push(e.message)); page.on("dialog", (d) => d.dismiss());
   await page.goto(url + "#/map"); await page.waitForTimeout(800);
@@ -27,7 +27,7 @@ const EN_WORDS = /\b(the|and|with|your|you|this|that|from|which|what|when|click|
     const real = bad.filter((x) => !KEEP.some((re) => re.test(x)));
     if (real.length) report[where] = [...new Set(real)];
   };
-  for (const h of ["#/map", "#/path", "#/progress", "#/glossary", "#/settings", "#/welcome"]) { await page.evaluate((x) => (location.hash = x), h); await page.waitForTimeout(400); await scan(h); }
+  for (const h of ["#/home", "#/map", "#/path", "#/progress", "#/glossary", "#/settings", "#/welcome"]) { await page.evaluate((x) => (location.hash = x), h); await page.waitForTimeout(400); await scan(h); }
   for (const id of ids) {
     await page.evaluate((x) => (location.hash = "#/c/" + x), id); await page.waitForTimeout(300);
     const viz = await page.$("#viz");

@@ -1,4 +1,4 @@
-/* AI Learning Hub — concept data (part 1: math & ML foundations) */
+/* Arggon Learn, AI track — concept data (part 1: math & ML foundations) */
 addConcept({
   id: "model", title: "What is a model?", es: "¿qué es un modelo?",
   group: "foundations", prereqs: ["vars_functions", "math_basics"], minutes: 15,

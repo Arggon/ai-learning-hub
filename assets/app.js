@@ -1,8 +1,10 @@
-/* AI Learning Hub — app shell: state (v2 + migration), onboarding, routing, prerequisite graph,
-   concept pages, quizzes, glossary, settings, progress. */
+/* Arggon Learn — app shell: state (storage + migrations), track registry, home, onboarding, routing,
+   prerequisite graph, concept pages, quizzes, glossary, settings, progress. */
 (function () {
   const C = window.CONCEPTS, BY = Object.fromEntries(C.map((c) => [c.id, c]));
-  const KEY = "aiHub.v2", V1 = "aiHub.v1";
+  // Storage: Arggon Learn keeps everything under KEY. Older builds (AI Learning Hub) used aiHub.v2 and, before
+  // that, aiHub.v1. On first load we copy the old data over once; the old keys are left untouched.
+  const KEY = "arggonLearn.v1", LEGACY_V2 = "aiHub.v2", V1 = "aiHub.v1";
   const LANGS = { pseudo: "Pseudocode", python: "Python", ts: "JavaScript / TypeScript", csharp: "C#", any: "Template" };
   const LANG_ORDER = ["pseudo", "python", "ts", "csharp", "any"];
   const FOUNDATIONS = ["chatbot_use", "prog_basics", "vars_functions", "data_json", "web_apis", "math_basics", "db_basics"];
@@ -30,6 +32,8 @@
     if (["auto", "beginner", "builder", "theory"].includes(st.track)) s.settings.track = st.track;
     if (raw.view && typeof raw.view === "object") s.view = { subgraphs: !!raw.view.subgraphs, zoom: Number.isFinite(raw.view.zoom) ? raw.view.zoom : undefined };
     if (raw.migratedFrom) s.migratedFrom = raw.migratedFrom;
+    if (raw.copiedFrom) s.copiedFrom = raw.copiedFrom;
+    if (typeof raw.trackId === "string") s.trackId = raw.trackId;
     return s;
   }
   /* v1 stored {done, quiz, theme, glosses, subgraphs, zoom}; its "k_*" nodes were assumed knowledge and no longer exist. */
@@ -44,13 +48,22 @@
   }
   function load() {
     try {
-      const v2 = localStorage.getItem(KEY); if (v2) return sanitize(JSON.parse(v2));
+      const cur = localStorage.getItem(KEY); if (cur) return sanitize(JSON.parse(cur));
+      // One-time copy from the AI Learning Hub key. Runs only while KEY is empty, so it never overwrites new progress.
+      const old = localStorage.getItem(LEGACY_V2);
+      if (old) { const s = sanitize(JSON.parse(old)); s.copiedFrom = { key: LEGACY_V2, at: new Date().toISOString() }; localStorage.setItem(KEY, JSON.stringify(s)); return s; }
       const v1 = localStorage.getItem(V1); if (v1) { const s = migrateV1(JSON.parse(v1)); localStorage.setItem(KEY, JSON.stringify(s)); return s; }
     } catch (e) { console.warn("Could not read saved progress; starting fresh.", e); }
     return fresh();
   }
   let S = load();
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { console.warn("Could not save progress", e); } };
+
+  /* ---------- tracks ---------- */
+  // window.LEARN_TRACKS (assets/tracks.js) lists the subjects. Track-specific copy comes from the active track.
+  const TRACK_LIST = window.LEARN_TRACKS || [];
+  const activeTrack = () => TRACK_LIST.find((tr) => tr.id === S.trackId) || TRACK_LIST[0];
+  const tc = (k) => { const tr = activeTrack(), c = (tr && tr.copy) || {}; return (c[S.settings.uiLang] || {})[k] ?? (c.en || {})[k] ?? ""; };
 
   /* ---------- i18n ---------- */
   const t = (k, vars = {}) => { const L = window.I18N[S.settings.uiLang] || window.I18N.en; let s = L[k] ?? window.I18N.en[k] ?? k; for (const [a, b] of Object.entries(vars)) s = s.split("{" + a + "}").join(b); return s; };
@@ -184,12 +197,12 @@
   function header() {
     const L = learnable(), doneN = L.filter((c) => S.done[c.id]).length;
     $("#progress-mini").innerHTML = `<span>${doneN}/${L.length} ${t("concepts")}</span><span class="pbar"><span style="width:${L.length ? (100 * doneN) / L.length : 100}%"></span></span>`;
-    const h = location.hash || "#/map";
+    const h = location.hash || "#/home";
     document.querySelectorAll("header nav a").forEach((a) => { a.classList.toggle("active", h.startsWith(a.getAttribute("href"))); a.textContent = t(a.dataset.i18n); });
     $(".brand small").textContent = t("tagline");
     const de = document.documentElement; de.dataset.theme = S.settings.theme; de.dataset.codeLang = S.settings.codeLang; de.lang = S.settings.uiLang;
     $("#lang-toggle").textContent = "🌐 " + t("lang_btn"); $("#lang-toggle").title = t("ui_lang");
-    $("#theme-toggle").title = t("theme_toggle"); document.title = t("doc_title"); const ft = $("footer"); if (ft) ft.textContent = t("footer");
+    $("#theme-toggle").title = t("theme_toggle"); document.title = t("doc_title"); for (const sel of ['meta[name="description"]', 'meta[property="og:description"]']) { const m = $(sel); if (m) m.content = t("meta_desc"); } { const m = $('meta[property="og:title"]'); if (m) m.content = t("doc_title"); } const ft = $("footer"); if (ft) ft.textContent = t("footer");
   }
   const trackName = () => t("track_" + track());
   function nextCard() {
@@ -221,7 +234,7 @@
   }
   function viewWelcome(main) {
     const a = (S.profile && S.profile.answers) || { goal: "auto" };
-    main.innerHTML = `<section class="card welcome"><h1>${t("welcome_title")}</h1><p>${t("welcome_p1")}</p><p>${t("welcome_p2")}</p>
+    main.innerHTML = `<section class="card welcome"><h1>${t("welcome_title")}</h1><p>${tc("welcome_p1")}</p><p>${t("welcome_p2")}</p>
       ${S.migratedFrom ? `<p class="tip">${t("migrated", { done: S.migratedFrom.done, quiz: S.migratedFrom.quiz })}</p>` : ""}
       <form id="ob" class="ob-form">${profileForm(a)}</form>
       <p id="ob-preview" class="preview" aria-live="polite"></p>
@@ -235,7 +248,7 @@
   /* ---------- map ---------- */
   async function viewMap(main) {
     main.innerHTML = `${personalizeBanner()}
-      <section class="intro card"><h2>${t("map_title")}</h2><p>${t("map_p")}</p>
+      <section class="intro card"><h2>${tc("map_title")}</h2><p>${t("map_p")}</p>
         <p class="legend">${["known", "done", "ready", "locked"].map((k) => `<span>${ICON[k]} ${LABEL(k)}</span>`).join("")}</p></section>
       ${nextCard()}
       <section class="card"><div class="graph-tools"><b>${t("graph_title")}</b><span class="legend small"><span class="muted">${t("border_topic")}</span>${Object.values(window.GROUPS).map((g) => `<span><span class="gdot" style="background:${g.color}"></span>${esc(g.label)}</span>`).join("")}</span><span class="spacer"></span>
@@ -459,9 +472,24 @@
   }
 
   /* ---------- router ---------- */
+  /* Home: the track picker. Works with one track today; each new entry in LEARN_TRACKS adds a card. */
+  function viewHome(main) {
+    const cards = TRACK_LIST.map((tr) => {
+      const ids = tr.concepts(), done = ids.filter((id) => S.done[id]).length, cp = tr.copy[S.settings.uiLang] || tr.copy.en;
+      return `<a class="card track-card" href="#/track/${esc(tr.id)}" style="border-color:${esc(tr.color)}"><div class="track-icon" aria-hidden="true">${esc(tr.icon)}</div>
+        <div><h2>${esc(cp.name)}</h2><p class="muted">${esc(cp.tagline)}</p><p>${esc(cp.card)}</p>
+        <p class="small"><b>${t("track_concepts", { done, n: ids.length })}</b> · <span class="btn small">${t("track_open")} →</span></p></div></a>`;
+    }).join("");
+    main.innerHTML = `<section class="card intro"><h1>${t("home_title")}</h1><p>${t("home_p")}</p></section>
+      <div class="track-grid">${cards}</div><p class="muted small">${t("tracks_soon")}</p>`;
+  }
+
   async function route() {
-    const main = $("#main"); let h = location.hash || "#/map";
-    if (!S.profile && !S.skipped && (h === "#/map" || h === "#/" || h === "#/path")) { if (location.hash !== "#/welcome") { history.replaceState(null, "", "#/welcome"); } h = "#/welcome"; }
+    const main = $("#main"); let h = location.hash || "#/home";
+    if (h === "#/" ) h = "#/home";
+    // Picking a track remembers it and opens its map.
+    if (h.startsWith("#/track/")) { const id = h.split("/")[2]; if (TRACK_LIST.some((tr) => tr.id === id)) { S.trackId = id; save(); } history.replaceState(null, "", "#/map"); h = "#/map"; }
+    if (!S.profile && !S.skipped && (h === "#/map" || h === "#/path")) { if (location.hash !== "#/welcome") { history.replaceState(null, "", "#/welcome"); } h = "#/welcome"; }
     header(); window.scrollTo(0, 0);
     if (h.startsWith("#/c/")) await viewConcept(main, h.slice(4));
     else if (h.startsWith("#/welcome")) viewWelcome(main);
@@ -469,6 +497,7 @@
     else if (h.startsWith("#/progress")) viewProgress(main);
     else if (h.startsWith("#/settings")) viewSettings(main);
     else if (h.startsWith("#/glossary")) viewGlossary(main, h.split("/")[2]);
+    else if (h.startsWith("#/home")) viewHome(main);
     else await viewMap(main);
     header();
   }
@@ -478,5 +507,5 @@
     $("#lang-toggle").onclick = () => { S.settings.uiLang = isEs() ? "en" : "es"; save(); route(); };
     route();
   });
-  window.HUB = { status, nextBest, personalOrder, isKnown, track, get S() { return S; }, BY, GL };
+  window.HUB = { KEY, activeTrack, status, nextBest, personalOrder, isKnown, track, get S() { return S; }, BY, GL };
 })();
