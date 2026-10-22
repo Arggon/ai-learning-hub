@@ -9,6 +9,10 @@
   const TRACKS = { beginner: [...FOUNDATIONS, ...window.FAST_PATH, ...window.THEORY_PATH], builder: [...window.FAST_PATH, ...window.THEORY_PATH], theory: [...window.THEORY_PATH, ...window.FAST_PATH] };
   const $ = (s, r = document) => r.querySelector(s);
   const esc = (s) => String(s).replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[ch]);
+  // For short authored strings that may carry inline formatting (exercise tasks): escape everything, then
+  // restore only a small allowlist of attribute-free tags. Existing entities like &lt; are kept.
+  const safeHtml = (s) => String(s).replace(/&(?!(?:[a-z]+|#\d+);)/gi, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;")
+    .replace(/&lt;(\/?)(code|b|i|em|strong|kbd)&gt;|&lt;br\s*\/?&gt;/g, (m, sl, tag) => (tag ? `<${sl}${tag}>` : "<br>"));
 
   /* ---------- state ---------- */
   const fresh = () => ({ version: 2, profile: null, skipped: false, manualKnown: {}, done: {}, quiz: {}, settings: { codeLang: "pseudo", uiLang: "en", theme: "light", track: "auto" }, view: {} });
@@ -52,6 +56,24 @@
   const t = (k, vars = {}) => { const L = window.I18N[S.settings.uiLang] || window.I18N.en; let s = L[k] ?? window.I18N.en[k] ?? k; for (const [a, b] of Object.entries(vars)) s = s.split("{" + a + "}").join(b); return s; };
   const tl = (obj) => (obj && (obj[S.settings.uiLang] || obj.en)) || "";
   const isEs = () => S.settings.uiLang === "es";
+  /* Localized content: concept fields read the Spanish overlay (window.ES) when the UI is in Spanish. */
+  const ESD = window.ES || { concepts: {}, glossary: {}, groups: {}, short: {}, comments: {} };
+  for (const c of C) {
+    const en = { title: c.title, summary: c.summary, why: c.why, body: c.body, quiz: c.quiz, resources: c.resources, diagram: c.diagram };
+    c._en = en;
+    const es = () => (isEs() && ESD.concepts[c.id]) || null;
+    const def = (k, f) => Object.defineProperty(c, k, { get: () => { const e = es(); return e ? f(e) : en[k]; }, configurable: true });
+    def("title", (e) => e.title); def("summary", (e) => e.summary); def("why", (e) => e.why); def("body", (e) => e.body); def("diagram", (e) => e.diagram || en.diagram);
+    def("quiz", (e) => en.quiz.map((q, i) => ({ ...q, q: e.quiz[i][0], options: e.quiz[i][1], why: e.quiz[i][2] })));
+    def("resources", (e) => en.resources.map((r, i) => ({ ...r, note: e.res[i] })));
+  }
+  for (const [g, info] of Object.entries(window.GROUPS)) { const en = info.label; Object.defineProperty(info, "label", { get: () => (isEs() && ESD.groups && ESD.groups[g]) || en, configurable: true }); }
+  const LANG_LABEL = (k) => (k === "pseudo" ? t("lang_pseudo") : k === "any" ? t("lang_any") : LANGS[k]);
+  /* Translate prose comments inside code samples (code itself stays as written). */
+  function localizeCode(code) {
+    if (!isEs() || !ESD.comments) return code;
+    return code.split("\n").map((line) => line.replace(/(^|\s)(\/\/|#)(\s?)(.+)$/, (m, pre, mark, sp, txt) => { const tr = ESD.comments[txt.trim()]; return tr ? pre + mark + sp + tr : m; })).join("\n");
+  }
 
   /* ---------- profile → known, track, language ---------- */
   function profileKnown(a) {
@@ -86,28 +108,35 @@
   function missingChain(id) { const order = personalOrder(); return [...ancestors(id)].filter((a) => !isDone(a)).sort((a, b) => order.indexOf(a) - order.indexOf(b)); }
   const ICON = { known: "🟢", done: "✅", ready: "▶️", locked: "🔒" };
   const LABEL = (st) => t("st_" + st);
-  const title = (c) => esc(c.title) + (isEs() && c.es ? ` <span class="es-title">· ${esc(c.es)}</span>` : "");
+  const title = (c) => esc(c.title);
 
   /* ---------- glossary links ---------- */
   const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
   const GL = (() => {
     const m = {};
-    for (const [k, v] of Object.entries(window.GLOSSARY)) m[k] = { key: k, def: typeof v === "string" ? v : v.def, es: typeof v === "string" ? "" : v.es || "", display: k, in: [] };
-    for (const c of C) for (const x of c.body.matchAll(/\[\[([^|\]]+)\|([^\]]+)\]\]/g)) {
+    for (const [k, v] of Object.entries(window.GLOSSARY)) m[k] = { key: k, defEn: typeof v === "string" ? v : v.def, es: typeof v === "string" ? "" : v.es || "", display: k, in: [] };
+    for (const c of C) for (const x of c._en.body.matchAll(/\[\[([^|\]]+)\|([^\]]+)\]\]/g)) {
       const k = x[1].trim().toLowerCase(); const e = m[k]; if (!e) continue;
       if (!e.in.includes(c.id)) e.in.push(c.id); if (!e.es) e.es = x[2]; if (e.display === k) e.display = x[1].trim();
     }
-    for (const e of Object.values(m)) e.display = e.display.charAt(0).toUpperCase() + e.display.slice(1);
+    for (const e of Object.values(m)) {
+      e.displayEn = e.display.charAt(0).toUpperCase() + e.display.slice(1); delete e.display;
+      const g = (ESD.glossary || {})[e.key];
+      Object.defineProperty(e, "display", { get: () => (isEs() && g ? g[0] : e.displayEn) });
+      Object.defineProperty(e, "def", { get: () => (isEs() && g ? g[1] : e.defEn) });
+    }
     return m;
   })();
+  // Glossary link text (English term or Spanish translation) is escaped before it goes into innerHTML.
   function gloss(html) {
     const seen = new Set();
     return html.replace(/\[\[([^|\]]+)\|([^\]]+)\]\]/g, (_, term, es) => {
       const k = term.trim().toLowerCase(), e = GL[k];
-      const esSpan = isEs() ? `<span class="es"> (${esc(es)})</span>` : "";
-      if (!e || seen.has(k)) return `<span class="term-plain">${term}</span>${esSpan}`;
+      if (isEs()) { const shown = esc(es); if (!e || seen.has(k)) return `<span class="term-plain">${shown}</span>`; seen.add(k); return `<a class="term" href="#/glossary/${slug(k)}" title="${esc(e.def)}">${shown}</a>`; }
+      const esSpan = "";
+      if (!e || seen.has(k)) return `<span class="term-plain">${esc(term)}</span>${esSpan}`;
       seen.add(k);
-      return `<a class="term" href="#/glossary/${slug(k)}" title="${esc(e.def)}">${term}</a>${esSpan}`;
+      return `<a class="term" href="#/glossary/${slug(k)}" title="${esc(e.def)}">${esc(term)}</a>${esSpan}`;
     });
   }
 
@@ -119,7 +148,7 @@
     mmReady = true; return true;
   }
   async function renderMermaid(container, code) {
-    if (!mmReady && !initMermaid()) { container.innerHTML = `<pre class="code small">${esc(code)}</pre><p class="muted small">(Diagram library could not load — showing the diagram source.)</p>`; return null; }
+    if (!mmReady && !initMermaid()) { container.innerHTML = `<pre class="code small">${esc(code)}</pre><p class="muted small">${t("mm_fallback")}</p>`; return null; }
     try { const { svg, bindFunctions } = await window.mermaid.render("mm" + ++mmCount, code); container.innerHTML = svg; bindFunctions && bindFunctions(container); return container.querySelector("svg"); }
     catch (e) { console.warn("mermaid render failed", e); container.innerHTML = `<pre class="code small">${esc(code)}</pre>`; return null; }
   }
@@ -128,7 +157,7 @@
   function graphCode(ids, opts = {}) {
     const set = new Set(ids), lines = ["flowchart " + (opts.dir || "TD")], order = personalOrder();
     const groups = {}; for (const id of ids) (groups[BY[id].group] ||= []).push(id);
-    const nodeLine = (id) => { const st = status(id), pos = order.indexOf(id); const tag = st === "known" ? t("st_known") : opts.nums && pos >= 0 && st !== "done" ? "#" + (pos + 1) : ""; return `  ${id}["${ICON[st]} ${mmLabel(SHORT[id] || BY[id].title)}${tag ? "<br/><small>" + mmLabel(tag) + "</small>" : ""}"]:::${st}${id === opts.focus ? "Focus" : ""}`; };
+    const nodeLine = (id) => { const st = status(id), pos = order.indexOf(id); const tag = st === "known" ? t("st_known") : opts.nums && pos >= 0 && st !== "done" ? "#" + (pos + 1) : ""; return `  ${id}["${ICON[st]} ${mmLabel((isEs() && ESD.short && ESD.short[id]) || (isEs() ? BY[id].title : SHORT[id] || BY[id].title))}${tag ? "<br/><small>" + mmLabel(tag) + "</small>" : ""}"]:::${st}${id === opts.focus ? "Focus" : ""}`; };
     if (opts.subgraphs) for (const [g, list] of Object.entries(groups)) { lines.push(`  subgraph G_${g}["${mmLabel(window.GROUPS[g].label)}"]`); list.forEach((id) => lines.push("  " + nodeLine(id))); lines.push("  end"); }
     else ids.forEach((id) => lines.push(nodeLine(id)));
     for (const id of ids) for (const p of BY[id].prereqs) if (set.has(p)) lines.push(`  ${p} --> ${id}`);
@@ -160,13 +189,14 @@
     $(".brand small").textContent = t("tagline");
     const de = document.documentElement; de.dataset.theme = S.settings.theme; de.dataset.codeLang = S.settings.codeLang; de.lang = S.settings.uiLang;
     $("#lang-toggle").textContent = "🌐 " + t("lang_btn"); $("#lang-toggle").title = t("ui_lang");
+    $("#theme-toggle").title = t("theme_toggle"); document.title = t("doc_title"); const ft = $("footer"); if (ft) ft.textContent = t("footer");
   }
   const trackName = () => t("track_" + track());
   function nextCard() {
     const n = nextBest();
     if (!n) return `<div class="card next"><h3>${t("all_done")}</h3><p>${t("all_done_p")}</p></div>`;
     const c = BY[n], miss = missingChain(n);
-    return `<div class="card next"><div class="kicker">${t("next_kicker")}</div><h3><a href="#/c/${n}">${ICON[status(n)]} ${esc(c.title)}</a>${isEs() ? ` <span class="es-title">${esc(c.es)}</span>` : ""}</h3><p>${esc(c.summary)}</p>
+    return `<div class="card next"><div class="kicker">${t("next_kicker")}</div><h3><a href="#/c/${n}">${ICON[status(n)]} ${esc(c.title)}</a></h3><p>${esc(c.summary)}</p>
       <p class="muted small">${miss.length ? t("needs_first", { list: miss.map((m) => esc(BY[m].title)).join(" → ") }) : t("why_next", { track: esc(trackName()) })} ≈ ${c.minutes} min.</p>
       <a class="btn" href="#/c/${n}">${t("start")}</a></div>`;
   }
@@ -182,7 +212,7 @@
   const readForm = (root) => { const a = {}; for (const q of window.ONBOARDING) { const r = root.querySelector(`input[name="ob_${q.id}"]:checked`); if (r) a[q.id] = r.value; } return a; };
   function previewText(a) {
     const k = [...profileKnown(a)]; const tr = trackFromAnswers(a);
-    return t("preview", { n: k.length, list: k.length ? k.map((id) => esc(BY[id].title)).join(", ") : t("none"), track: esc(t("track_" + tr)), lang: esc(LANGS[langFromAnswers(a)]) });
+    return t("preview", { n: k.length, list: k.length ? k.map((id) => esc(BY[id].title)).join(", ") : t("none"), track: esc(t("track_" + tr)), lang: esc(LANG_LABEL(langFromAnswers(a))) });
   }
   function applyProfile(a) {
     S.profile = { answers: a, at: new Date().toISOString() }; S.skipped = false;
@@ -208,11 +238,11 @@
       <section class="intro card"><h2>${t("map_title")}</h2><p>${t("map_p")}</p>
         <p class="legend">${["known", "done", "ready", "locked"].map((k) => `<span>${ICON[k]} ${LABEL(k)}</span>`).join("")}</p></section>
       ${nextCard()}
-      <section class="card"><div class="graph-tools"><b>Prerequisite graph</b><span class="legend small"><span class="muted">${t("border_topic")}</span>${Object.values(window.GROUPS).map((g) => `<span><span class="gdot" style="background:${g.color}"></span>${esc(g.label)}</span>`).join("")}</span><span class="spacer"></span>
+      <section class="card"><div class="graph-tools"><b>${t("graph_title")}</b><span class="legend small"><span class="muted">${t("border_topic")}</span>${Object.values(window.GROUPS).map((g) => `<span><span class="gdot" style="background:${g.color}"></span>${esc(g.label)}</span>`).join("")}</span><span class="spacer"></span>
         <label class="check"><input type="checkbox" id="sg" ${S.view.subgraphs ? "checked" : ""}> ${t("group_by")}</label>
-        <button class="btn ghost small" id="zout" type="button" aria-label="zoom out">−</button><button class="btn ghost small" id="zin" type="button" aria-label="zoom in">+</button><button class="btn ghost small" id="zfit" type="button">fit</button></div>
+        <button class="btn ghost small" id="zout" type="button" aria-label="${t("zoom_out")}">−</button><button class="btn ghost small" id="zin" type="button" aria-label="${t("zoom_in")}">+</button><button class="btn ghost small" id="zfit" type="button">${t("zoom_fit")}</button></div>
         <p class="muted small">${t("map_hint")}</p>
-        <div id="graph" class="graph" aria-label="Curriculum prerequisite graph"></div></section>`;
+        <div id="graph" class="graph" aria-label="${t("graph_aria")}"></div></section>`;
     const draw = async () => {
       const svg = await renderMermaid($("#graph"), graphCode(C.map((c) => c.id), { subgraphs: S.view.subgraphs, nums: true }));
       if (!svg) { $("#graph").insertAdjacentHTML("beforeend", fallbackList()); return; }
@@ -233,18 +263,14 @@
   function viewPath(main) {
     const order = personalOrder(), known = C.filter((c) => isKnown(c.id));
     const left = order.filter((id) => !S.done[id]).reduce((s, id) => s + BY[id].minutes, 0);
-    const row = (id, i) => { const c = BY[id], st = status(id), q = S.quiz[id]; return `<li class="path-item ${st}"><span class="num">${i + 1}</span><span class="st" title="${LABEL(st)}">${ICON[st]}</span><div><a href="#/c/${id}">${title(c)}</a> <span class="muted small">· ${esc(window.GROUPS[c.group].label)} · ${c.minutes} min${q ? ` · quiz ${q.best}/${c.quiz.length}` : ""}</span>${c.prereqs.length ? `<div class="muted small">needs: ${c.prereqs.map((p) => `<a href="#/c/${p}">${esc(BY[p].title)}</a>${isKnown(p) ? " 🟢" : ""}`).join(", ")}</div>` : ""}</div></li>`; };
+    const row = (id, i) => { const c = BY[id], st = status(id), q = S.quiz[id]; return `<li class="path-item ${st}"><span class="num">${i + 1}</span><span class="st" title="${LABEL(st)}">${ICON[st]}</span><div><a href="#/c/${id}">${title(c)}</a> <span class="muted small">· ${esc(window.GROUPS[c.group].label)} · ${c.minutes} min${q ? ` · ${t("quiz_short")} ${q.best}/${c.quiz.length}` : ""}</span>${c.prereqs.length ? `<div class="muted small">${t("needs_label")} ${c.prereqs.map((p) => `<a href="#/c/${p}">${esc(BY[p].title)}</a>${isKnown(p) ? " 🟢" : ""}`).join(", ")}</div>` : ""}</div></li>`; };
     main.innerHTML = `${personalizeBanner()}${nextCard()}
       <div class="two-col path">
       <section class="card"><h2>${t("path_title")}</h2><p class="muted">${t("path_p")}</p>
         <p><label class="slider"><span class="slabel">${t("track")}</span><select id="track-sel">${["auto", "beginner", "builder", "theory"].map((k) => `<option value="${k}" ${S.settings.track === k ? "selected" : ""}>${esc(t("track_" + k))}</option>`).join("")}</select></label> <span class="muted small">${t("path_hours", { h: Math.round(left / 6) / 10 })}</span></p>
         <ol class="path-list">${order.map(row).join("")}</ol></section>
       <section class="card"><h2>${t("why_order")}</h2><ul class="small">
-        <li><b>Foundations</b> (programming, data, the web, the math) are inserted only where a later concept needs them — and skipped if you already know them.</li>
-        <li><b>Using a chatbot well</b> comes first for beginners: it pays off immediately and builds intuition for prompting and agents.</li>
-        <li>On the <b>builder</b> track, what an LLM really does (tokens, probabilities, context) comes early, because it explains most surprising behavior: made-up answers, forgetting, cost.</li>
-        <li>Then the practical stack: APIs, prompting, tools, agents, MCP, cost, evals and safety, then retrieval (RAG).</li>
-        <li>The <b>theory</b> track (how models are trained) can be done in any order once its prerequisites are covered — one theory page a week works well alongside the builder track.</li></ul>
+        ${[1, 2, 3, 4, 5].map((i) => `<li>${t("why_order_" + i)}</li>`).join("")}</ul>
         ${known.length ? `<h3>${t("path_known")}</h3><div class="chips">${known.map((c) => `<a class="chip st-known" href="#/c/${c.id}">🟢 ${esc(c.title)}</a>`).join("")}</div>` : ""}
         <p class="small"><a href="#/settings">${t("nav_settings")} →</a></p></section></div>`;
     $("#track-sel").onchange = (e) => { S.settings.track = e.target.value; save(); route(); };
@@ -253,9 +279,9 @@
   /* ---------- progress ---------- */
   function viewProgress(main) {
     const L = learnable(), doneN = L.filter((c) => S.done[c.id]).length, qs = Object.entries(S.quiz);
-    main.innerHTML = `${nextCard()}<section class="card"><h2>${t("progress_title")}</h2><p>${doneN} / ${L.length} · ${qs.length} quizzes · ${qs.length ? Math.round((100 * qs.reduce((s, [id, q]) => s + q.best / BY[id].quiz.length, 0)) / qs.length) : 0}%</p>
-      <table class="ptable"><thead><tr><th>Concept</th><th>${t("group")}</th><th>${t("status")}</th><th>${t("quiz_col")}</th><th>${t("done_col")}</th></tr></thead><tbody>
-      ${personalOrder().concat(C.filter((c) => isKnown(c.id)).map((c) => c.id)).map((id) => { const c = BY[id], st = status(id), q = S.quiz[id]; return `<tr><td><a href="#/c/${id}">${title(c)}</a></td><td><span class="gdot" style="background:${window.GROUPS[c.group].color}"></span>${esc(window.GROUPS[c.group].label)}</td><td>${ICON[st]} ${LABEL(st)}</td><td>${q ? `${q.best}/${c.quiz.length} · ${q.last}/${c.quiz.length}` : "—"}</td><td>${isKnown(id) ? "—" : `<input type="checkbox" data-done="${id}" ${S.done[id] ? "checked" : ""} aria-label="done: ${esc(c.title)}">`}</td></tr>`; }).join("")}
+    main.innerHTML = `${nextCard()}<section class="card"><h2>${t("progress_title")}</h2><p>${doneN} / ${L.length} · ${qs.length} ${t("quizzes")} · ${qs.length ? Math.round((100 * qs.reduce((s, [id, q]) => s + q.best / BY[id].quiz.length, 0)) / qs.length) : 0}%</p>
+      <table class="ptable"><thead><tr><th>${t("concept_col")}</th><th>${t("group")}</th><th>${t("status")}</th><th>${t("quiz_col")}</th><th>${t("done_col")}</th></tr></thead><tbody>
+      ${personalOrder().concat(C.filter((c) => isKnown(c.id)).map((c) => c.id)).map((id) => { const c = BY[id], st = status(id), q = S.quiz[id]; return `<tr><td><a href="#/c/${id}">${title(c)}</a></td><td><span class="gdot" style="background:${window.GROUPS[c.group].color}"></span>${esc(window.GROUPS[c.group].label)}</td><td>${ICON[st]} ${LABEL(st)}</td><td>${q ? `${q.best}/${c.quiz.length} · ${q.last}/${c.quiz.length}` : "—"}</td><td>${isKnown(id) ? "—" : `<input type="checkbox" data-done="${id}" ${S.done[id] ? "checked" : ""} aria-label="${t("done_col")}: ${esc(c.title)}">`}</td></tr>`; }).join("")}
       </tbody></table>${dataTools()}</section>`;
     main.querySelectorAll("[data-done]").forEach((cb) => cb.addEventListener("change", () => { if (cb.checked) S.done[cb.dataset.done] = true; else delete S.done[cb.dataset.done]; save(); route(); }));
     wireDataTools(main);
@@ -292,8 +318,8 @@
     const a = (S.profile && S.profile.answers) || {};
     main.innerHTML = `<section class="card"><h1>${t("settings_title")}</h1>
       <div class="settings-grid">
-        <label class="slider"><span class="slabel">${t("code_lang")}</span><select id="set-code">${["pseudo", "python", "ts", "csharp"].map((k) => `<option value="${k}" ${S.settings.codeLang === k ? "selected" : ""}>${LANGS[k]}</option>`).join("")}</select></label>
-        <label class="slider"><span class="slabel">${t("ui_lang")}</span><select id="set-ui"><option value="en" ${!isEs() ? "selected" : ""}>English</option><option value="es" ${isEs() ? "selected" : ""}>Español (interface, titles, glossary)</option></select></label>
+        <label class="slider"><span class="slabel">${t("code_lang")}</span><select id="set-code">${["pseudo", "python", "ts", "csharp"].map((k) => `<option value="${k}" ${S.settings.codeLang === k ? "selected" : ""}>${LANG_LABEL(k)}</option>`).join("")}</select></label>
+        <label class="slider"><span class="slabel">${t("ui_lang")}</span><select id="set-ui"><option value="en" ${!isEs() ? "selected" : ""}>English</option><option value="es" ${isEs() ? "selected" : ""}>Español</option></select></label>
         <label class="slider"><span class="slabel">${t("track")}</span><select id="set-track">${["auto", "beginner", "builder", "theory"].map((k) => `<option value="${k}" ${S.settings.track === k ? "selected" : ""}>${esc(t("track_" + k))}</option>`).join("")}</select></label>
         <label class="slider"><span class="slabel">${t("theme")}</span><select id="set-theme"><option value="light" ${S.settings.theme === "light" ? "selected" : ""}>${t("theme_light")}</option><option value="dark" ${S.settings.theme === "dark" ? "selected" : ""}>${t("theme_dark")}</option></select></label>
       </div></section>
@@ -316,10 +342,10 @@
 
   /* ---------- glossary ---------- */
   function viewGlossary(main, focus) {
-    const entries = Object.values(GL).sort((a, b) => a.display.localeCompare(b.display, "en", { sensitivity: "base" }));
+    const entries = Object.values(GL).sort((a, b) => a.display.localeCompare(b.display, isEs() ? "es" : "en", { sensitivity: "base" }));
     main.innerHTML = `<section class="card"><h1>${t("glossary_title")}</h1><p class="muted">${t("glossary_p")}</p>
       <input type="search" id="gsearch" class="search" placeholder="${esc(t("search"))}" aria-label="${esc(t("search"))}"> <span class="muted small" id="gcount"></span>
-      <dl class="glossary">${entries.map((e) => `<div class="gentry" id="g-${slug(e.key)}" data-text="${esc((e.display + " " + e.def + " " + e.es).toLowerCase())}"><dt>${esc(e.display)}${isEs() && e.es ? ` <span class="es">(${esc(e.es)})</span>` : ""}</dt><dd>${esc(e.def)}${e.in.length ? `<div class="small muted">${t("appears_in")}: ${e.in.map((id) => `<a href="#/c/${id}">${esc(BY[id].title)}</a>`).join(", ")}</div>` : ""}</dd></div>`).join("")}</dl>
+      <dl class="glossary">${entries.map((e) => `<div class="gentry" id="g-${slug(e.key)}" data-text="${esc((e.display + " " + e.def + " " + e.displayEn).toLowerCase())}"><dt>${esc(e.display)}${isEs() ? ` <span class="es">(${esc(e.displayEn)})</span>` : ""}</dt><dd>${esc(e.def)}${e.in.length ? `<div class="small muted">${t("appears_in")}: ${e.in.map((id) => `<a href="#/c/${id}">${esc(BY[id].title)}</a>`).join(", ")}</div>` : ""}</dd></div>`).join("")}</dl>
       <p id="gnone" class="muted" hidden>${t("no_terms")}</p></section>`;
     const filter = () => { const q = $("#gsearch").value.trim().toLowerCase(); let n = 0; main.querySelectorAll(".gentry").forEach((d) => { const show = !q || d.dataset.text.includes(q); d.hidden = !show; if (show) n++; }); $("#gcount").textContent = n + " / " + entries.length; $("#gnone").hidden = n > 0; };
     $("#gsearch").addEventListener("input", filter); filter();
@@ -339,47 +365,44 @@
   function exerciseCode(c) {
     const base = c.exercise.code, code = typeof base === "string" ? { [c.exercise.lang === "TypeScript" ? "ts" : "csharp"]: base } : { ...base };
     const extra = (window.EXERCISES || {})[c.id]; if (extra) Object.assign(code, extra.code);
-    return { task: (extra && extra.task) || c.exercise.task, code };
+    const es = isEs() && ESD.concepts[c.id];
+    for (const k of Object.keys(code)) code[k] = localizeCode(code[k]);
+    return { task: (es && es.task) || (extra && extra.task) || c.exercise.task, code };
   }
-  const RUN_HINT = {
-    pseudo: "Pseudocode is for reading, not running: translate it into any language, or pick a language tab to see real code.",
-    python: "Save as <code>main.py</code> and run <code>python main.py</code> (Python 3.10+). If an import is missing, install it with <code>pip install …</code> as noted in the code.",
-    ts: "Save as <code>main.mts</code> and run <code>npx tsx main.mts</code> (Node 18+). Packages noted in the code install with <code>npm install …</code>.",
-    csharp: "<code>dotnet new console -n Try</code>, paste into <code>Program.cs</code> (top-level statements), then <code>dotnet run</code> (.NET 8+). Add packages with <code>dotnet add package …</code> where noted.",
-    any: "No code needed — copy the template and fill it in.",
-  };
+  const RUN_HINT = new Proxy({}, { get: (_, k) => t("run_" + String(k)) });
   function renderExercise(box, c) {
     const { task, code } = exerciseCode(c);
     const langs = LANG_ORDER.filter((l) => code[l]);
     const want = S.settings.codeLang; let cur = code[want] ? want : code.pseudo ? "pseudo" : langs[0];
-    box.innerHTML = `<h2>${t("hands_on")}</h2><p>${task}</p>
-      ${langs.length > 1 ? `<div class="tabs" role="tablist">${langs.map((l) => `<button type="button" role="tab" class="tab" data-lang="${l}">${LANGS[l]}</button>`).join("")}</div>` : ""}
+    box.innerHTML = `<h2>${t("hands_on")}</h2><p>${safeHtml(task)}</p>
+      ${langs.length > 1 ? `<div class="tabs" role="tablist">${langs.map((l) => `<button type="button" role="tab" class="tab" data-lang="${l}">${LANG_LABEL(l)}</button>`).join("")}</div>` : ""}
       <p class="muted small" id="ex-note"></p>
       <div class="codewrap"><button class="btn ghost small copy" type="button">${t("copy")}</button><pre class="code"><code id="ex-code"></code></pre></div><p class="muted small" id="ex-hint"></p>`;
     const show = () => {
       $("#ex-code", box).textContent = code[cur]; $("#ex-hint", box).innerHTML = RUN_HINT[cur];
-      $("#ex-note", box).textContent = !code[want] && cur !== want && want ? t("not_available", { lang: LANGS[want], shown: LANGS[cur] }) : "";
+      $("#ex-note", box).textContent = !code[want] && cur !== want && want ? t("not_available", { lang: LANG_LABEL(want), shown: LANG_LABEL(cur) }) : "";
       box.querySelectorAll(".tab").forEach((b) => { b.classList.toggle("active", b.dataset.lang === cur); b.setAttribute("aria-selected", b.dataset.lang === cur); });
     };
     box.querySelectorAll(".tab").forEach((b) => (b.onclick = () => { cur = b.dataset.lang; show(); }));
-    $(".copy", box).onclick = (e) => { navigator.clipboard?.writeText(code[cur]).then(() => (e.target.textContent = t("copied")), () => (e.target.textContent = "Select & copy")); };
+    $(".copy", box).onclick = (e) => { navigator.clipboard?.writeText(code[cur]).then(() => (e.target.textContent = t("copied")), () => (e.target.textContent = t("copy_fail"))); };
     show();
   }
+  let vizObserver = null;
   async function viewConcept(main, id) {
-    const c = BY[id]; if (!c) { main.innerHTML = `<p>Concept not found. <a href="#/map">Back to the map</a></p>`; return; }
+    const c = BY[id]; if (!c) { main.innerHTML = `<p>${t("not_found")} <a href="#/map">${t("back_to_map")}</a></p>`; return; }
     const st = status(id), g = window.GROUPS[c.group], order = personalOrder(), oi = order.indexOf(id);
     const prev = oi > 0 ? order[oi - 1] : null, next = oi >= 0 && oi < order.length - 1 ? order[oi + 1] : null;
     const missing = missingChain(id), dependents = C.filter((x) => x.prereqs.includes(id));
     const resGeneral = c.resources.filter((r) => !r.lang), resLang = c.resources.filter((r) => r.lang === S.settings.codeLang);
-    const resLi = (r) => `<li><span class="rtype ${r.type}">${r.type === "video" ? "▶ video" : r.type === "docs" ? "📘 docs" : "📄 reading"}</span> <a href="${esc(r.u)}" target="_blank" rel="noopener">${esc(r.t)}</a><div class="muted small">${esc(r.note || "")} <span class="url">${esc(r.u)}</span></div></li>`;
+    const resLi = (r) => `<li><span class="rtype ${r.type}">${r.type === "video" ? "▶ " + t("rt_video") : r.type === "docs" ? "📘 " + t("rt_docs") : "📄 " + t("rt_reading")}</span> <a href="${esc(r.u)}" target="_blank" rel="noopener">${esc(r.t)}</a>${isEs() ? ` <span class="muted small">${t("in_english")}</span>` : ""}<div class="muted small">${esc(r.note || "")} <span class="url">${esc(r.u)}</span></div></li>`;
     const knownCtl = isKnown(id)
       ? `<span class="good">🟢 ${fromProfile(id) && !(id in S.manualKnown) ? t("known_from_profile") : t("known_mark")}</span> <button class="btn ghost small" id="unknown" type="button">${t("undo_known")}</button>`
       : `<label class="check big"><input type="checkbox" id="done" ${S.done[id] ? "checked" : ""}> ${t("mark_done")}</label> <button class="btn ghost small" id="iknow" type="button">🟢 ${t("known_mark")}</button>`;
     main.innerHTML = `
       <nav class="crumbs"><a href="#/map">${t("nav_map")}</a> › <span style="color:${g.color}">${esc(g.label)}</span> › ${esc(c.title)}</nav>
       <article class="concept">
-      <header class="c-head" style="border-color:${g.color}"><h1>${esc(c.title)}</h1>${isEs() ? `<div class="es-title">${esc(c.es)}</div>` : ""}
-        <div class="badges"><span class="badge st-${st}">${ICON[st]} ${LABEL(st)}</span><span class="badge">⏱ ≈ ${c.minutes} min</span>${oi >= 0 ? `<span class="badge fast">#${oi + 1} on your path</span>` : ""}</div>
+      <header class="c-head" style="border-color:${g.color}"><h1>${esc(c.title)}</h1>
+        <div class="badges"><span class="badge st-${st}">${ICON[st]} ${LABEL(st)}</span><span class="badge">⏱ ≈ ${c.minutes} min</span>${oi >= 0 ? `<span class="badge fast">${t("on_path", { n: oi + 1 })}</span>` : ""}</div>
         <p class="summary">${esc(c.summary)}</p><p class="why"><b>${t("why_learn")}</b> ${esc(c.why)}</p></header>
       <section class="card prereq"><h2>${t("before_this")}</h2>
         ${c.prereqs.length ? `<div class="chips">${c.prereqs.map((p) => `<a class="chip st-${status(p)}" href="#/c/${p}">${ICON[status(p)]} ${esc(BY[p].title)}</a>`).join("")}</div>` : `<p>${t("nothing_needed")}</p>`}
@@ -391,7 +414,7 @@
       ${c.diagram ? `<section class="card"><h2>${t("diagram")}</h2><div class="diagram" id="diagram"></div></section>` : ""}
       ${c.viz ? `<section class="card viz"><h2>${t("try_it")}</h2><div id="viz"></div></section>` : ""}
       <section class="card res"><h2>${t("resources")}</h2><ul class="resources">${resGeneral.map(resLi).join("")}</ul>
-        ${resLang.length ? `<h3 class="small">${t("for_lang", { lang: LANGS[S.settings.codeLang] })}</h3><ul class="resources">${resLang.map(resLi).join("")}</ul>` : ""}</section>
+        ${resLang.length ? `<h3 class="small">${t("for_lang", { lang: LANG_LABEL(S.settings.codeLang) })}</h3><ul class="resources">${resLang.map(resLi).join("")}</ul>` : ""}</section>
       <section class="card quiz" id="quiz"></section>
       <section class="card ex" id="exercise"></section>
       <section class="card done-row"><div>${knownCtl}</div>
@@ -403,14 +426,16 @@
     const uk = $("#unknown"); if (uk) uk.onclick = () => { if (fromProfile(id)) S.manualKnown[id] = false; else delete S.manualKnown[id]; save(); route(); };
     renderQuiz($("#quiz"), c);
     renderExercise($("#exercise"), c);
-    if (c.viz && window.VIZ[c.viz]) { try { window.VIZ[c.viz]($("#viz")); } catch (e) { console.error(e); $("#viz").textContent = "Visualization error: " + e.message; } }
+    if (vizObserver) { vizObserver.disconnect(); vizObserver = null; }
+    if (c.viz && window.VIZ[c.viz] && isEs() && window.VIZ_I18N) vizObserver = window.VIZ_I18N.watch($("#viz"));
+    if (c.viz && window.VIZ[c.viz]) { try { window.VIZ[c.viz]($("#viz")); } catch (e) { console.error(e); $("#viz").textContent = t("viz_error") + e.message; } }
     if (c.diagram) await renderMermaid($("#diagram"), c.diagram);
     if ($("#mini")) { const ids = [...ancestors(id), id]; const svg = await renderMermaid($("#mini"), graphCode(ids, { dir: "LR", focus: id })); wireGraphClicks(svg); }
   }
   function renderQuiz(box, c) {
     const answers = {}; let score = 0;
     const prevQ = S.quiz[c.id];
-    box.innerHTML = `<h2>${t("quiz")}</h2><p class="muted small">${c.quiz.length} questions · instant feedback${prevQ ? ` · best so far: ${prevQ.best}/${c.quiz.length}` : ""}</p>`;
+    box.innerHTML = `<h2>${t("quiz")}</h2><p class="muted small">${t("quiz_meta", { n: c.quiz.length })}${prevQ ? t("quiz_best", { b: prevQ.best, n: c.quiz.length }) : ""}</p>`;
     c.quiz.forEach((q, qi) => {
       const fs = document.createElement("fieldset"); fs.className = "q";
       fs.innerHTML = `<legend>${qi + 1}. ${esc(q.q)}</legend>` + q.options.map((o, oi) => `<button type="button" class="opt" data-oi="${oi}">${esc(o)}</button>`).join("") + `<div class="fb" aria-live="polite"></div>`;
@@ -418,7 +443,7 @@
         if (qi in answers) return; const oi = +b.dataset.oi; answers[qi] = oi; const ok = oi === q.a; if (ok) score++;
         fs.querySelectorAll(".opt").forEach((x) => { x.disabled = true; if (+x.dataset.oi === q.a) x.classList.add("correct"); });
         if (!ok) b.classList.add("wrong");
-        fs.querySelector(".fb").innerHTML = (ok ? `<span class="good">✔ Correct.</span> ` : `<span class="bad">✘ Not quite.</span> `) + esc(q.why);
+        fs.querySelector(".fb").innerHTML = (ok ? `<span class="good">${t("q_correct")}</span> ` : `<span class="bad">${t("q_wrong")}</span> `) + esc(q.why);
         if (Object.keys(answers).length === c.quiz.length) finish();
       }));
       box.append(fs);
@@ -427,7 +452,7 @@
     function finish() {
       const best = Math.max(score, S.quiz[c.id]?.best || 0); S.quiz[c.id] = { best, last: score, at: new Date().toISOString() }; save(); header();
       const pass = score / c.quiz.length >= 0.75;
-      res.innerHTML = `<b>Score: ${score}/${c.quiz.length}</b> ${pass ? "— great! " + (isDone(c.id) ? "" : `<button class="btn small" type="button" id="qdone">Mark concept as done</button>`) : "— review the explanation and the resources, then retry."} <button class="btn ghost small" type="button" id="qretry">Retry quiz</button>`;
+      res.innerHTML = `<b>${t("q_score", { s: score, n: c.quiz.length })}</b> ${pass ? t("q_great") + " " + (isDone(c.id) ? "" : `<button class="btn small" type="button" id="qdone">${t("q_mark_done")}</button>`) : t("q_review")} <button class="btn ghost small" type="button" id="qretry">${t("q_retry")}</button>`;
       res.querySelector("#qretry").onclick = () => renderQuiz(box, c);
       const qd = res.querySelector("#qdone"); if (qd) qd.onclick = () => { S.done[c.id] = true; save(); route(); };
     }

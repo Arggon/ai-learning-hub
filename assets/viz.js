@@ -27,6 +27,7 @@
     cv.style.aspectRatio = W + " / " + H;
     parent.append(cv);
     const ctx = cv.getContext("2d"); ctx.scale(2, 2);
+    const ft = ctx.fillText.bind(ctx); ctx.fillText = (txt, ...rest) => ft(window.VIZ_I18N ? window.VIZ_I18N.tr(txt) : txt, ...rest);
     const toLocal = (ev) => { const r = cv.getBoundingClientRect(); return { x: (ev.clientX - r.left) * W / r.width, y: (ev.clientY - r.top) * H / r.height }; };
     return { cv, ctx, W, H, toLocal, clear() { ctx.clearRect(0, 0, W, H); } };
   }
@@ -56,7 +57,8 @@
     const prev = button(c, "◀ Back", () => { i--; show(); }, "ghost"); const next = button(c, "Next ▶", () => { i++; show(); }); const lbl = el("span", { class: "muted" }); c.append(lbl);
     button(c, "Restart", () => { i = 0; show(); }, "ghost"); show();
   }
-  window.VU = { el, slider, button, canvas, bars, lin, axes, out, controls, fmt2, softmax, fmtNum, css, stepper };
+  const isEs = () => document.documentElement.lang === "es";
+  window.VU = { isEs, el, slider, button, canvas, bars, lin, axes, out, controls, fmt2, softmax, fmtNum, css, stepper };
 
   VIZ.line = (root) => {
     const c = controls(root); const k = canvas(root, 520, 260);

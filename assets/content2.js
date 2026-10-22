@@ -398,8 +398,8 @@ addConcept({
   E --> B1
   subgraph B1["Transformer block × N"]
     direction TB
-    N1["LayerNorm"] --> A["Masked multi-head attention"] --> R1(("+ residual"))
-    R1 --> N2["LayerNorm"] --> M["MLP (feed-forward)"] --> R2(("+ residual"))
+    N1["LayerNorm"] --> A["Masked multi-head attention"] --> R1(("add residual"))
+    R1 --> N2["LayerNorm"] --> M["MLP (feed-forward)"] --> R2(("add residual"))
   end
   B1 --> U["Unembedding → logits"] --> S["Softmax → P(next token)"]`,
   resources: [

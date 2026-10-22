@@ -195,3 +195,23 @@ pre.sql{background:var(--codebg);color:var(--codefg);border-radius:8px;padding:8
 .checklist{list-style:none;padding:0;margin:6px 0}.checklist li{padding:3px 0}
 .checklist li.ok .ck{color:var(--good);font-weight:800}.checklist li.miss .ck{color:var(--muted)}
 .warn-inline{color:var(--bad);font-weight:700}
+/* Small screens: the nav wraps onto its own full-width row so the header never scrolls sideways. */
+@media (max-width:600px){
+  header.top{gap:8px 10px;padding:8px 12px}
+  header.top .brand{font-size:16px}
+  header.top .brand small{display:none}
+  header.top nav{order:10;flex:1 1 100%;flex-wrap:wrap;gap:2px;min-width:0}
+  header.top nav a{padding:5px 8px;font-size:14px}
+  header.top .spacer{display:none}
+  #progress-mini{margin-left:auto}
+  /* Content that was wider than a phone: glossary columns, progress table, demo sliders, code blocks */
+  .glossary{grid-template-columns:1fr}
+  .ptable{display:block;overflow-x:auto}
+  .slider{flex-wrap:wrap;max-width:100%}
+  .slider .slabel{min-width:0}
+  .slider input[type=range]{width:min(150px,100%)}
+  pre{max-width:100%;overflow-x:auto}
+  select,input,textarea{max-width:100%}
+  .http-grid>*,.json-grid>*,.prog-grid>*{min-width:0}
+  .http-box,main p,main li,main dd{overflow-wrap:anywhere}
+}
