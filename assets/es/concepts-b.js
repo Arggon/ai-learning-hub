@@ -52,7 +52,7 @@ db_basics: {
 },
 math_basics: {
   title: "La matemática que necesitás",
-  summary: "Funciones y gráficos (y = w·x + b), porcentajes, cuadrados, y exponentes y logaritmos. Es toda la matemática que necesita este hub; cada fórmula que aparezca después también se explica con palabras.",
+  summary: "Funciones y gráficos (y = w·x + b), porcentajes, cuadrados, y exponentes y logaritmos. Es toda la matemática que necesita esta ruta de IA; cada fórmula que aparezca después también se explica con palabras.",
   why: "Los modelos son funciones, el entrenamiento lee pendientes en gráficos, las probabilidades son porcentajes, y softmax y la pérdida usan exponentes y logaritmos. Con estas cinco ideas, el resto se vuelve accesible.",
   body: `
 <h3>La idea en una frase</h3>

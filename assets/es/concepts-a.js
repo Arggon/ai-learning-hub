@@ -14,7 +14,7 @@ prog_basics: {
 <li>Las computadoras son rápidas pero literales. Hacen exactamente lo que dicen las instrucciones, aunque esté mal. Un [[bug|bug (error en el código)]] es una instrucción que no hace lo que su autor quería.</li>
 <li>Un [[programming language|lenguaje de programación]] (Python, JavaScript, C#, …) es un formato estricto para escribir instrucciones que una persona puede leer y una computadora puede ejecutar.</li>
 <li>Hay tres bloques que aparecen en casi todo programa: <b>secuencia</b> (hacé esto, después aquello), <b>decisiones</b> (<code>if</code>: si algo es verdadero, hacé A; si no, B) y <b>repetición</b> ([[loop|bucle]]: hacé esto con cada elemento).</li>
-<li>El [[Pseudocode|pseudocódigo]] es "casi código" en lenguaje común, para explicar una idea sin los detalles de un lenguaje concreto. Este hub puede mostrarte ejemplos en pseudocódigo, Python, JavaScript/TypeScript o C# (elegilo en Ajustes).</li>
+<li>El [[Pseudocode|pseudocódigo]] es "casi código" en lenguaje común, para explicar una idea sin los detalles de un lenguaje concreto. Arggon Learn puede mostrarte ejemplos en pseudocódigo, Python, JavaScript/TypeScript o C# (elegilo en Ajustes).</li>
 </ul>
 <h3>Analogía</h3>
 <p>Una receta de cocina es un programa para una persona: ingredientes (entradas), pasos en orden, decisiones ("si la masa está pegajosa, agregá harina"), repetición ("revolvé hasta que quede lisa") y un resultado (salida). Programar es escribir recetas para un cocinero que nunca improvisa.</p>
