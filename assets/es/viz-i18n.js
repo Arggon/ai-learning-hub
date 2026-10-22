@@ -5,6 +5,8 @@
 window.ES = window.ES || {};
 (function () {
   const isEs = () => document.documentElement.lang === "es";
+  // Safety: translations are written only through Text.nodeValue, textContent and setAttribute, never innerHTML,
+  // so a translated string can never inject markup.
   const miss = new Set(); const done = new Set();
   function tr(s) {
     if (!isEs() || s == null) return s;

@@ -1,5 +1,6 @@
 /* Headless check: renders every page in Spanish, exercises each visualization (buttons, checkboxes, selects,
-   canvas clicks) and reports text that stayed in English.
+   canvas clicks) and reports text that stayed in English. Resource titles (.resources a) and a few quoted
+   English examples (KEEP) are exempt on purpose.
    Usage: node scripts/check-i18n-browser.cjs   (needs playwright-core and a Chromium; set CHROME=/path/to/chrome or PW_CORE=/path/to/playwright-core) */
 const path = require("path");
 const { chromium } = require(process.env.PW_CORE || "playwright-core");
@@ -17,11 +18,14 @@ const EN_WORDS = /\b(the|and|with|your|you|this|that|from|which|what|when|click|
   const scan = async (where) => {
     const txt = await page.evaluate(() => {
       const out = []; const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-      while (w.nextNode()) { const n = w.currentNode, p = n.parentElement; if (!p || p.closest("pre,code,textarea,script,style,.url,svg[id^=mm],#graph,#mini,.tok,.tokens")) continue; const s = n.nodeValue.trim(); if (s) out.push(s); }
+      while (w.nextNode()) { const n = w.currentNode, p = n.parentElement; if (!p || p.closest("pre,code,textarea,script,style,.url,.resources a,svg[id^=mm],#graph,#mini,.tok,.tokens")) continue; const s = n.nodeValue.trim(); if (s) out.push(s); }
       return out;
     });
     const bad = txt.filter((s) => (s.match(EN_WORDS) || []).length >= 2);
-    if (bad.length) report[where] = [...new Set(bad)];
+    // Intentional English: example sentences the lessons quote on purpose and a paper title.
+    const KEEP = [/The cat sat on the/, /The animal didn't cross the street/, /Attention Is All You Need/];
+    const real = bad.filter((x) => !KEEP.some((re) => re.test(x)));
+    if (real.length) report[where] = [...new Set(real)];
   };
   for (const h of ["#/map", "#/path", "#/progress", "#/glossary", "#/settings", "#/welcome"]) { await page.evaluate((x) => (location.hash = x), h); await page.waitForTimeout(400); await scan(h); }
   for (const id of ids) {

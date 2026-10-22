@@ -63,6 +63,7 @@
       ["fmt", "Output format", "<format>\nReturn JSON: {\"summary\": string, \"next_action\": string, \"priority\": \"low\"|\"medium\"|\"high\"}\n</format>", "Makes the output parseable by your code."],
       ["exit", "Way out", "If the ticket is unclear, set next_action to \"ask customer for details\". Never invent features.", "Reduces made-up answers."]
     ];
+    const escH = (x) => String(x).replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[ch]);
     const partsEs = [
       ["role", "Rol", "Sos un asistente de soporte amable de Acme Store.", "Le da al modelo una perspectiva y un vocabulario."],
       ["ctx", "Contexto", "<context>\nLos clientes son dueños de comercios chicos. Muchos no son técnicos.\n</context>", "Quién es el público y por qué existe la tarea."],
@@ -74,7 +75,7 @@
     ];
     const parts = isEs() ? partsEs : partsEn;
     const on = new Set(["task"]); const c = controls(root); const pre = el("pre", { class: "code small" }); root.append(pre); const o = out(root);
-    const draw = () => { pre.textContent = parts.filter((p) => on.has(p[0])).map((p) => p[2]).join("\n\n") || (isEs() ? "(prompt vacío)" : "(empty prompt)"); const n = on.size; o.innerHTML = `Prompt checklist: <b>${n}/${parts.length}</b> — ` + parts.map((p) => `<span class="${on.has(p[0]) ? "good" : "muted"}" title="${p[3]}">${on.has(p[0]) ? "✔" : "○"} ${p[1]}</span>`).join(" · ") + (n < 4 ? `<br><span class="muted">A bare task gives generic answers. Turn on more parts and watch the spec become clear.</span>` : ""); };
+    const draw = () => { pre.textContent = parts.filter((p) => on.has(p[0])).map((p) => p[2]).join("\n\n") || (isEs() ? "(prompt vacío)" : "(empty prompt)"); const n = on.size; o.innerHTML = `Prompt checklist: <b>${n}/${parts.length}</b> — ` + parts.map((p) => `<span class="${on.has(p[0]) ? "good" : "muted"}" title="${escH(p[3])}">${on.has(p[0]) ? "✔" : "○"} ${escH(p[1])}</span>`).join(" · ") + (n < 4 ? `<br><span class="muted">A bare task gives generic answers. Turn on more parts and watch the spec become clear.</span>` : ""); };
     for (const p of parts) { const cb = el("input", { type: "checkbox" }); cb.checked = on.has(p[0]); cb.addEventListener("change", () => { cb.checked ? on.add(p[0]) : on.delete(p[0]); draw(); }); c.append(el("label", { class: "check", title: p[3] }, cb, " " + p[1])); }
     draw();
   };

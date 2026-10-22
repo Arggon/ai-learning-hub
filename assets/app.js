@@ -9,6 +9,10 @@
   const TRACKS = { beginner: [...FOUNDATIONS, ...window.FAST_PATH, ...window.THEORY_PATH], builder: [...window.FAST_PATH, ...window.THEORY_PATH], theory: [...window.THEORY_PATH, ...window.FAST_PATH] };
   const $ = (s, r = document) => r.querySelector(s);
   const esc = (s) => String(s).replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[ch]);
+  // For short authored strings that may carry inline formatting (exercise tasks): escape everything, then
+  // restore only a small allowlist of attribute-free tags. Existing entities like &lt; are kept.
+  const safeHtml = (s) => String(s).replace(/&(?!(?:[a-z]+|#\d+);)/gi, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;")
+    .replace(/&lt;(\/?)(code|b|i|em|strong|kbd)&gt;|&lt;br\s*\/?&gt;/g, (m, sl, tag) => (tag ? `<${sl}${tag}>` : "<br>"));
 
   /* ---------- state ---------- */
   const fresh = () => ({ version: 2, profile: null, skipped: false, manualKnown: {}, done: {}, quiz: {}, settings: { codeLang: "pseudo", uiLang: "en", theme: "light", track: "auto" }, view: {} });
@@ -123,15 +127,16 @@
     }
     return m;
   })();
+  // Glossary link text (English term or Spanish translation) is escaped before it goes into innerHTML.
   function gloss(html) {
     const seen = new Set();
     return html.replace(/\[\[([^|\]]+)\|([^\]]+)\]\]/g, (_, term, es) => {
       const k = term.trim().toLowerCase(), e = GL[k];
-      if (isEs()) { const shown = es; if (!e || seen.has(k)) return `<span class="term-plain">${shown}</span>`; seen.add(k); return `<a class="term" href="#/glossary/${slug(k)}" title="${esc(e.def)}">${shown}</a>`; }
+      if (isEs()) { const shown = esc(es); if (!e || seen.has(k)) return `<span class="term-plain">${shown}</span>`; seen.add(k); return `<a class="term" href="#/glossary/${slug(k)}" title="${esc(e.def)}">${shown}</a>`; }
       const esSpan = "";
-      if (!e || seen.has(k)) return `<span class="term-plain">${term}</span>${esSpan}`;
+      if (!e || seen.has(k)) return `<span class="term-plain">${esc(term)}</span>${esSpan}`;
       seen.add(k);
-      return `<a class="term" href="#/glossary/${slug(k)}" title="${esc(e.def)}">${term}</a>${esSpan}`;
+      return `<a class="term" href="#/glossary/${slug(k)}" title="${esc(e.def)}">${esc(term)}</a>${esSpan}`;
     });
   }
 
@@ -369,7 +374,7 @@
     const { task, code } = exerciseCode(c);
     const langs = LANG_ORDER.filter((l) => code[l]);
     const want = S.settings.codeLang; let cur = code[want] ? want : code.pseudo ? "pseudo" : langs[0];
-    box.innerHTML = `<h2>${t("hands_on")}</h2><p>${task}</p>
+    box.innerHTML = `<h2>${t("hands_on")}</h2><p>${safeHtml(task)}</p>
       ${langs.length > 1 ? `<div class="tabs" role="tablist">${langs.map((l) => `<button type="button" role="tab" class="tab" data-lang="${l}">${LANG_LABEL(l)}</button>`).join("")}</div>` : ""}
       <p class="muted small" id="ex-note"></p>
       <div class="codewrap"><button class="btn ghost small copy" type="button">${t("copy")}</button><pre class="code"><code id="ex-code"></code></pre></div><p class="muted small" id="ex-hint"></p>`;

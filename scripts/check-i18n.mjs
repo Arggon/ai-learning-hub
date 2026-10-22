@@ -11,12 +11,19 @@ fs.readdirSync(A("es")).filter((f) => f.endsWith(".js")).sort().forEach((f) => l
 const { CONCEPTS, GLOSSARY, I18N, ONBOARDING, EXERCISES, ES, GROUPS } = ctx;
 const errors = [];
 const err = (m) => errors.push(m);
-// Strings allowed to be identical in EN and ES (technical terms, names, symbols).
+// SAME_OK: the allowlist of strings that may legitimately be identical in English and Spanish.
+// Every other prose string must differ, so "ES equals EN" catches untranslated copies. Only add entries here
+// when the text is the same in both languages on purpose:
+//   - technical terms and acronyms that Spanish speakers use as-is (API, JSON, Token, Prompt, Fine-tuning…),
+//   - proper names (Model Context Protocol, Python, GitHub…),
+//   - code samples, formulas and sample data used as quiz options (e.g. { "name": "Ana" }, ReLU(z) = max(0, z)).
+// Keep it short; anything that reads as an English sentence must be translated instead.
 const SAME_OK = new Set(["API", "JSON", "SQL", "RAG", "MCP", "LLM", "LoRA", "RLHF", "OK", "Python", "C#", "TypeScript", "JavaScript", "GitHub", "Token", "Tokens", "Prompt", "Prompts", "Embeddings", "Transformers", "Backprop", "ML", "IA", "Chatbot", "Fine-tuning", "Top-p", "Pseudo", "Email", "Web",
   // code samples, formulas and proper names that are the same in both languages
   "JavaScript / TypeScript", "{ \"name\": \"Ana\", \"age\": 30 }", "{ name: 'Ana' }", "{ \"name\": \"Ana\" }", "{ \"name\": \"Ana\", }", "name = Ana", "ReLU(z) = max(0, z).", "Model Context Protocol (MCP)", "CPU, GPU, RAM"]);
 const prose = (s) => typeof s === "string" && /[A-Za-z]{3,}.*\s.*[A-Za-z]{3,}/.test(s.replace(/<[^>]+>|`[^`]*`|\[\[[^\]]*\]\]/g, ""));
 const same = (en, es, where) => { if (typeof en === "string" && en === es && prose(en) && !SAME_OK.has(en.trim())) err(`${where}: Spanish equals English: ${JSON.stringify(en.slice(0, 80))}`); };
+const tags = (s) => [...String(s || "").matchAll(/<\/?([a-z][a-z0-9]*)/gi)].map((m) => m[1].toLowerCase());
 const missing = (v) => v == null || (typeof v === "string" && !v.trim());
 const glossKeys = (s) => [...String(s || "").matchAll(/\[\[([^|\]]+)(?:\|[^\]]*)?\]\]/g)].map((m) => m[1]).sort().join(",");
 
@@ -37,6 +44,8 @@ for (const c of CONCEPTS) {
   if (!e) { err(`${w}: no Spanish entry`); continue; }
   for (const f of ["title", "summary", "why", "body"]) { if (missing(e[f])) err(`${w}.${f}: missing`); else same(c[f], e[f], `${w}.${f}`); }
   if (glossKeys(c.body) !== glossKeys(e.body)) err(`${w}.body: glossary keys differ from English`);
+  // Spanish HTML must not introduce tags the English source doesn't use (content goes into innerHTML).
+  for (const f of ["body", "task"]) { const enT = new Set(tags(f === "task" ? ((EXERCISES[c.id] && EXERCISES[c.id].task) || (c.exercise && c.exercise.task)) : c[f])); for (const tg of tags(e[f])) if (!enT.has(tg)) err(`${w}.${f}: Spanish uses <${tg}>, which the English text doesn't`); }
   const res = c.resources || [];
   if ((e.res || []).length !== res.length) err(`${w}.res: ${(e.res || []).length} notes, expected ${res.length}`);
   res.forEach((r, i) => { if (r.note) { const n = (e.res || [])[i]; if (missing(n)) err(`${w}.res[${i}]: missing note`); else same(r.note, n, `${w}.res[${i}]`); } });

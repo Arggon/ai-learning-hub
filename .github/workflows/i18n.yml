@@ -1,8 +1,6 @@
 name: i18n
 on:
   pull_request:
-  push:
-    branches: [main]
 jobs:
   check:
     runs-on: ubuntu-latest
